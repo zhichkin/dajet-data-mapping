@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netcoreapp3.1</TargetFramework>
+    <RootNamespace>DaJet.Data.Mapping</RootNamespace>
+    <AssemblyName>DaJet.Data.Mapping</AssemblyName>
+    <Authors>Zhichkin</Authors>
+    <Copyright>Zhichkin © 2021</Copyright>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <Description>Work with 1C:Enterprise 8 user data directly using C# !
+Microsoft SQL Server and PostgreSQL databases are supported.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="DaJet.Metadata" Version="3.1.7" />
+    <PackageReference Include="Microsoft.IO.RecyclableMemoryStream" Version="2.2.0" />
+    <PackageReference Include="RabbitMQ.Client" Version="6.2.2" />
+  </ItemGroup>
+
+</Project>

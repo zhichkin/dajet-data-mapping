@@ -1,0 +1,387 @@
+﻿using DaJet.Metadata.Model;
+using Microsoft.Data.SqlClient;
+using System;
+using System.Collections.Generic;
+using System.Data;
+using System.Linq;
+using System.Text;
+
+namespace DaJet.Data.Mapping
+{
+    public sealed class EntityDataMapper
+    {
+        private string SELECT_ENTITY_COUNT_SCRIPT = string.Empty;
+        private string SELECT_ENTITY_PAGING_SCRIPT = string.Empty;
+        private string SELECT_ENTITY_TABLE_PART_SCRIPT = string.Empty;
+
+        public EntityDataMapper() { }
+        public DataMapperOptions Options { get; private set; }
+        public List<PropertyMapper> PropertyMappers { get; private set; } = new List<PropertyMapper>();
+        private readonly Dictionary<string, int> CatalogPropertyOrder = new Dictionary<string, int>()
+        {
+            { "ЭтоГруппа",        0 }, // IsFolder           - bool (invert)
+            { "Ссылка",           1 }, // Ref                - uuid
+            { "ПометкаУдаления",  2 }, // DeletionMark       - bool
+            { "Владелец",         3 }, // Owner              - { #type + #value }
+            { "Родитель",         4 }, // Parent             - uuid
+            { "Код",              5 }, // Code               - string | number
+            { "Наименование",     6 }, // Description        - string
+            { "Предопределённый", 7 }  // PredefinedDataName - string
+        };
+        private readonly Dictionary<string, int> DocumentPropertyOrder = new Dictionary<string, int>()
+        {
+            { "Ссылка",           0 }, // Ref                - uuid
+            { "ПометкаУдаления",  1 }, // DeletionMark       - bool
+            { "Дата",             2 }, // Date               - DateTime
+            { "Номер",            3 }, // Number             - string | number
+            { "Проведён",         4 }  // Posted             - bool
+        };
+        public EntityDataMapper Configure(DataMapperOptions options)
+        {
+            Options = options;
+            ConfigureDataMapper();
+            return this;
+        }
+        private void ConfigureDataMapper()
+        {
+            if (Options.MetaObject == null)
+            {
+                Options.MetaObject = Options.InfoBase.GetApplicationObjectByName(Options.MetadataName);
+            }
+
+            if (Options.MetaObject is Catalog)
+            {
+                Options.IgnoreProperties = new List<string>()
+                {
+                    "ВерсияДанных"
+                };
+            }
+            else if (Options.MetaObject is Document)
+            {
+                Options.IgnoreProperties = new List<string>()
+                {
+                    "ВерсияДанных",
+                    "ПериодНомера"
+                };
+            }
+
+            if (Options.MetaObject is Catalog catalog)
+            {
+                OrderCatalogSystemProperties(catalog);
+            }
+            else if (Options.MetaObject is Document document)
+            {
+                OrderDocumentSystemProperties(document);
+            }
+
+            ConfigurePropertyDataMappers();
+            ConfigureTablePartDataMappers();
+        }
+        private void OrderCatalogSystemProperties(Catalog catalog)
+        {
+            List<PropertyOrdinal> ordinals = new List<PropertyOrdinal>();
+
+            int i = 0;
+            while (i < catalog.Properties.Count)
+            {
+                if (catalog.Properties[i].Purpose == PropertyPurpose.System)
+                {
+                    if (CatalogPropertyOrder.TryGetValue(catalog.Properties[i].Name, out int ordinal))
+                    {
+                        ordinals.Add(new PropertyOrdinal()
+                        {
+                            Ordinal = ordinal,
+                            Property = catalog.Properties[i]
+                        });
+                        catalog.Properties.RemoveAt(i);
+                    }
+                    else
+                    {
+                        i++;
+                    }
+                }
+                else
+                {
+                    i++;
+                }
+            }
+
+            IEnumerable<MetadataProperty> ordered = ordinals
+                .OrderBy(item => item.Ordinal)
+                .Select(item=>item.Property);
+
+            catalog.Properties.InsertRange(0, ordered);
+        }
+        private void OrderDocumentSystemProperties(Document document)
+        {
+            List<PropertyOrdinal> ordinals = new List<PropertyOrdinal>();
+
+            int i = 0;
+            while (i < document.Properties.Count)
+            {
+                if (document.Properties[i].Purpose == PropertyPurpose.System)
+                {
+                    if (DocumentPropertyOrder.TryGetValue(document.Properties[i].Name, out int ordinal))
+                    {
+                        ordinals.Add(new PropertyOrdinal()
+                        {
+                            Ordinal = ordinal,
+                            Property = document.Properties[i]
+                        });
+                        document.Properties.RemoveAt(i);
+                    }
+                    else
+                    {
+                        i++;
+                    }
+                }
+                else
+                {
+                    i++;
+                }
+            }
+
+            IEnumerable<MetadataProperty> ordered = ordinals
+                .OrderBy(item => item.Ordinal)
+                .Select(item => item.Property);
+
+            document.Properties.InsertRange(0, ordered);
+        }
+        private void ConfigurePropertyDataMappers()
+        {
+            PropertyMappers.Clear();
+
+            int ordinal = -1;
+
+            for (int i = 0; i < Options.MetaObject.Properties.Count; i++)
+            {
+                MetadataProperty property = Options.MetaObject.Properties[i];
+
+                if (Options.IgnoreProperties.Contains(property.Name))
+                {
+                    continue;
+                }
+
+                PropertyMapper mapper = new PropertyMapper(Options.InfoBase, property);
+                mapper.Initialize(ref ordinal);
+
+                PropertyMappers.Add(mapper);
+            }
+        }
+        private void ConfigureTablePartDataMappers()
+        {
+            Options.TablePartMappers.Clear();
+
+            foreach (TablePart table in Options.MetaObject.TableParts)
+            {
+                if (Options.IgnoreProperties.Contains(table.Name))
+                {
+                    continue;
+                }
+
+                EntityDataMapper mapper = new EntityDataMapper()
+                    .Configure(new DataMapperOptions()
+                    {
+                        InfoBase = Options.InfoBase,
+                        MetaObject = table,
+                        ConnectionString = Options.ConnectionString,
+                        IgnoreProperties = new List<string>()
+                        {
+                            "Ссылка",
+                            "КлючСтроки",
+                            "НомерСтроки"
+                        }
+                    });
+
+                Options.TablePartMappers.Add(mapper);
+            }
+        }
+        
+
+
+        public string GetTotalRowCountScript()
+        {
+            if (string.IsNullOrEmpty(SELECT_ENTITY_COUNT_SCRIPT))
+            {
+                StringBuilder script = new StringBuilder();
+
+                script.Append($"SELECT COUNT(*) FROM {Options.MetaObject.TableName} WITH(NOLOCK);");
+
+                SELECT_ENTITY_COUNT_SCRIPT = script.ToString();
+            }
+
+            return SELECT_ENTITY_COUNT_SCRIPT;
+        }
+        private string BuildSelectEntityScript(string tableAlias)
+        {
+            StringBuilder script = new StringBuilder();
+
+            script.Append("SELECT ");
+
+            for (int i = 0; i < PropertyMappers.Count; i++)
+            {
+                PropertyMappers[i].BuildSelectCommand(script, tableAlias);
+            }
+
+            script.Remove(script.Length - 2, 2); // remove ", " from the end
+
+            if (string.IsNullOrEmpty(tableAlias))
+            {
+                script.Append($" FROM {Options.MetaObject.TableName}");
+            }
+            else
+            {
+                script.Append($" FROM {Options.MetaObject.TableName} AS {tableAlias}");
+            }
+
+            return script.ToString();
+        }
+        public string GetSelectEntityPagingScript()
+        {
+            if (string.IsNullOrEmpty(SELECT_ENTITY_PAGING_SCRIPT))
+            {
+                StringBuilder script = new StringBuilder();
+
+                script.Append("WITH cte AS ");
+                script.Append($"(SELECT _IDRRef FROM {Options.MetaObject.TableName} ORDER BY _IDRRef ASC ");
+                script.Append("OFFSET @PageSize * (@PageNumber - 1) ROWS ");
+                script.Append("FETCH NEXT @PageSize ROWS ONLY) ");
+                script.Append(BuildSelectEntityScript("t"));
+                script.Append(" INNER JOIN cte ON t._IDRRef = cte._IDRRef;");
+
+                SELECT_ENTITY_PAGING_SCRIPT = script.ToString();
+            }
+
+            return SELECT_ENTITY_PAGING_SCRIPT;
+        }
+        public string GetSelectTablePartScript()
+        {
+            if (string.IsNullOrEmpty(SELECT_ENTITY_TABLE_PART_SCRIPT))
+            {
+                StringBuilder script = new StringBuilder();
+
+                MetadataProperty property = Options.MetaObject.Properties.Where(p => p.Name == "Ссылка").FirstOrDefault();
+                DatabaseField field = property.Fields[0];
+
+                script.Append(BuildSelectEntityScript(null));
+                script.Append($" WHERE {field.Name} = @entity ");
+                script.Append($"ORDER BY {field.Name} ASC, _KeyField ASC;");
+
+                SELECT_ENTITY_TABLE_PART_SCRIPT = script.ToString();
+            }
+
+            return SELECT_ENTITY_TABLE_PART_SCRIPT;
+        }
+
+        public int GetTotalRowCount()
+        {
+            int rowCount = 0;
+
+            using (SqlConnection connection = new SqlConnection(Options.ConnectionString))
+            {
+                connection.Open();
+
+                using (SqlCommand command = connection.CreateCommand())
+                {
+                    command.CommandType = CommandType.Text;
+                    command.CommandText = GetTotalRowCountScript();
+                    command.CommandTimeout = 10; // seconds
+
+                    rowCount = (int)command.ExecuteScalar();
+                }
+            }
+
+            return rowCount;
+        }
+        public EntityRef GetEntityRef(IDataReader reader)
+        {
+            for (int i = 0; i < PropertyMappers.Count; i++)
+            {
+                if (PropertyMappers[i].Property.Name == "Ссылка")
+                {
+                    return new EntityRef(Options.MetaObject.TypeCode, (Guid)PropertyMappers[i].GetValue(reader));
+                }
+            }
+            return null;
+        }
+        public bool GetIsFolder(IDataReader reader)
+        {
+            for (int i = 0; i < PropertyMappers.Count; i++)
+            {
+                if (PropertyMappers[i].Property.Name == "ЭтоГруппа")
+                {
+                    return (bool)PropertyMappers[i].GetValue(reader);
+                }
+            }
+            return false;
+        }
+        public string GetPredefinedDataName(IDataReader reader, Guid uuid)
+        {
+            if (Options.MetaObject is IPredefinedValues predefined)
+            {
+                foreach (PredefinedValue value in predefined.PredefinedValues)
+                {
+                    if (value.Uuid == uuid)
+                    {
+                        return value.Name;
+                    }
+                }
+            }
+            return null;
+        }
+        public IEnumerable<IDataReader> GetEntityDataRows(int size, int page)
+        {
+            using (SqlConnection connection = new SqlConnection(Options.ConnectionString))
+            {
+                connection.Open();
+
+                using (SqlCommand command = connection.CreateCommand())
+                {
+                    command.CommandType = CommandType.Text;
+                    command.CommandText = GetSelectEntityPagingScript();
+                    command.CommandTimeout = 15; // seconds
+                    command.Parameters.AddWithValue("PageSize", size);
+                    command.Parameters.AddWithValue("PageNumber", page);
+
+                    using (SqlDataReader reader = command.ExecuteReader())
+                    {
+                        while (reader.Read())
+                        {
+                            yield return reader;
+                        }
+                        reader.Close();
+                    }
+                }
+            }
+        }
+        public IEnumerable<IDataReader> GetTablePartDataRows(EntityRef entity)
+        {
+            using (SqlConnection connection = new SqlConnection(Options.ConnectionString))
+            {
+                connection.Open();
+
+                using (SqlCommand command = connection.CreateCommand())
+                {
+                    command.CommandType = CommandType.Text;
+                    command.CommandText = GetSelectTablePartScript();
+                    command.CommandTimeout = 15; // seconds
+                    command.Parameters.AddWithValue("entity", SQLHelper.GetSqlUuid(entity.Identity));
+
+                    using (SqlDataReader reader = command.ExecuteReader())
+                    {
+                        while (reader.Read())
+                        {
+                            yield return reader;
+                        }
+                        reader.Close();
+                    }
+                }
+            }
+        }
+    }
+    internal struct PropertyOrdinal
+    {
+        internal int Ordinal;
+        internal MetadataProperty Property;
+    }
+}
