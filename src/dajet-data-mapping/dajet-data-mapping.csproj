@@ -7,8 +7,10 @@
     <Authors>Zhichkin</Authors>
     <Copyright>Zhichkin © 2021</Copyright>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
-    <Description>Work with 1C:Enterprise 8 user data directly using C# !
+    <Description>Library to work with 1C:Enterprise 8 application data directly using C#.
 Microsoft SQL Server and PostgreSQL databases are supported.</Description>
+    <PackageReleaseNotes>Library to work with 1C:Enterprise 8 application data directly using C#.
+This version supports Microsoft SQL Server only.</PackageReleaseNotes>
   </PropertyGroup>
 
   <ItemGroup>
