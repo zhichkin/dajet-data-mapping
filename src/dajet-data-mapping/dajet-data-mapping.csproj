@@ -11,6 +11,8 @@
 Microsoft SQL Server and PostgreSQL databases are supported.</Description>
     <PackageReleaseNotes>Library to work with 1C:Enterprise 8 application data directly using C#.
 This version supports Microsoft SQL Server only.</PackageReleaseNotes>
+    <PackageProjectUrl>https://github.com/zhichkin/dajet-data-mapping</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/zhichkin/dajet-data-mapping</RepositoryUrl>
   </PropertyGroup>
 
   <ItemGroup>
