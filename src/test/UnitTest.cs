@@ -207,7 +207,37 @@ namespace test
             Console.WriteLine(mapper.GetSelectRegisterPagingScript());
         }
 
+        [TestMethod] public void ShowIndexInfo()
+        {
+            string metadataName = "Справочник.Партии";
 
+            InfoBase infoBase = MetadataService.OpenInfoBase();
+            ApplicationObject metaObject = infoBase.GetApplicationObjectByName(metadataName);
+
+            Console.WriteLine($"Object: {metaObject.Name}");
+
+            List<IndexInfo> indexes = SQLHelper.GetIndexes(
+                MetadataService.ConnectionString,
+                metaObject.TableName);
+
+            foreach (IndexInfo index in indexes)
+            {
+                Console.WriteLine();
+                Console.WriteLine($"Index: {index.Name}");
+                Console.WriteLine($"Unique: {index.IsUnique}");
+                Console.WriteLine($"Clustered: {index.IsClustered}");
+                Console.WriteLine($"Primary key: {index.IsPrimaryKey}");
+
+                foreach (IndexColumnInfo column in index.Columns)
+                {
+                    Console.WriteLine($"- No: {column.KeyOrdinal}");
+                    Console.WriteLine($"- Name: {column.Name}");
+                    Console.WriteLine($"- Nullable: {column.IsNullable}");
+                    Console.WriteLine($"- Included: {column.IsIncluded}");
+                    Console.WriteLine($"- Sort order: {(column.IsDescending ? "DESC" : "ASC")}");
+                }
+            }
+        }
 
         [TestMethod] public void PublishMessages()
         {

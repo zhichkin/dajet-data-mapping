@@ -1,6 +1,7 @@
 ﻿using Microsoft.Data.SqlClient;
 using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Text;
 
 namespace DaJet.Data
@@ -16,6 +17,38 @@ namespace DaJet.Data
         public int NUMERIC_SCALE;
         public bool IS_NULLABLE;
         public bool IsFound;
+    }
+    public sealed class IndexInfo
+    {
+        public IndexInfo(string name, bool unique, bool clustered, bool primaryKey)
+        {
+            Name = name;
+            IsUnique = unique;
+            IsClustered = clustered;  //  1 - CLUSTERED, 2 - NONCLUSTERED
+            IsPrimaryKey = primaryKey;
+        }
+        public string Name { get; private set; }
+        public bool IsUnique { get; private set; }
+        public bool IsClustered { get; private set; }
+        public bool IsPrimaryKey { get; private set; }
+        public List<IndexColumnInfo> Columns { get; } = new List<IndexColumnInfo>();
+        public List<IndexColumnInfo> Includes { get; } = new List<IndexColumnInfo>();
+    }
+    public sealed class IndexColumnInfo
+    {
+        public IndexColumnInfo(string name, byte ordinal, bool included, bool nullable, bool descending)
+        {
+            Name = name;
+            KeyOrdinal = ordinal;
+            IsIncluded = included;  //  1 - CLUSTERED, 2 - NONCLUSTERED
+            IsNullable = nullable;
+            IsDescending = descending;
+        }
+        public string Name { get; private set; }
+        public byte KeyOrdinal { get; private set; }
+        public bool IsIncluded { get; private set; }
+        public bool IsNullable { get; private set; }
+        public bool IsDescending { get; private set; } // 0 - ASC, 1 - DESC
     }
     public sealed class ClusteredIndexInfo
     {
@@ -58,7 +91,7 @@ namespace DaJet.Data
         public bool IS_DESCENDING_KEY; // 0 - ASC, 1 - DESC
     }
     public static class SQLHelper
-    {   
+    {
         public static List<SqlFieldInfo> GetSqlFields(string connectionString, string tableName)
         {
             StringBuilder sb = new StringBuilder();
@@ -165,6 +198,94 @@ namespace DaJet.Data
             }
             return info;
         }
+
+        private static string GetSelectIndexesScript()
+        {
+            StringBuilder sb = new StringBuilder();
+
+            sb.AppendLine(@"SELECT");
+            sb.AppendLine(@"  i.name               AS [IndexName],");
+            sb.AppendLine(@"  i.index_id           AS [IndexId],");
+            sb.AppendLine(@"  c.key_ordinal        AS [KeyOrdinal],");
+            sb.AppendLine(@"  i.type               AS [IsClustered],");
+            sb.AppendLine(@"  i.is_unique          AS [IsUnique],");
+            sb.AppendLine(@"  i.is_primary_key     AS [IsPrimaryKey],");
+            sb.AppendLine(@"  c.is_descending_key  AS [IsDescending],");
+            sb.AppendLine(@"  c.is_included_column AS [IsIncluded],");
+            sb.AppendLine(@"  f.name               AS [ColumnName],");
+            sb.AppendLine(@"  f.is_nullable        AS [IsNullable]");
+            sb.AppendLine(@"FROM  sys.indexes AS i");
+            sb.AppendLine(@"INNER JOIN sys.tables AS t ON t.object_id = i.object_id");
+            sb.AppendLine(@"INNER JOIN sys.index_columns AS c ON c.object_id = t.object_id AND c.index_id = i.index_id");
+            sb.AppendLine(@"INNER JOIN sys.columns AS f ON f.object_id = t.object_id AND f.column_id = c.column_id");
+            sb.AppendLine(@"WHERE");
+            sb.AppendLine(@"  t.object_id = OBJECT_ID(@tableName) AND i.type IN (1, 2)");
+            sb.AppendLine(@"ORDER BY");
+            sb.AppendLine(@"  i.index_id    ASC,");
+            sb.AppendLine(@"  c.key_ordinal ASC;");
+
+            return sb.ToString();
+        }
+        public static List<IndexInfo> GetIndexes(string connectionString, string tableName)
+        {
+            List<IndexInfo> list = new List<IndexInfo>();
+
+            using (SqlConnection connection = new SqlConnection(connectionString))
+            {
+                connection.Open();
+
+                using (SqlCommand command = connection.CreateCommand())
+                {
+                    command.CommandType = CommandType.Text;
+                    command.CommandText = GetSelectIndexesScript();
+                    command.Parameters.AddWithValue("tableName", tableName);
+
+                    using (SqlDataReader reader = command.ExecuteReader())
+                    {
+                        int current_id = -1;
+                        IndexInfo index = null;
+                        IndexColumnInfo column = null;
+
+                        while (reader.Read())
+                        {
+                            int index_id = reader.GetInt32("IndexId");
+
+                            if (current_id != index_id)
+                            {
+                                index = new IndexInfo(
+                                    reader.GetString("IndexName"),
+                                    reader.GetBoolean("IsUnique"),
+                                    reader.GetByte("IsClustered") == 1,
+                                    reader.GetBoolean("IsPrimaryKey"));
+                                list.Add(index);
+
+                                current_id = index_id;
+                            }
+
+                            column = new IndexColumnInfo(
+                                reader.GetString("ColumnName"),
+                                reader.GetByte("KeyOrdinal"),
+                                reader.GetBoolean("IsIncluded"),
+                                reader.GetBoolean("IsNullable"),
+                                reader.GetBoolean("IsDescending"));
+                            
+                            if (column.IsIncluded)
+                            {
+                                index.Includes.Add(column);
+                            }
+                            else
+                            {
+                                index.Columns.Add(column);
+                            }
+                        }
+                        reader.Close();
+                    }
+                }
+            }
+
+            return list;
+        }
+
         public static byte[] Get1CUuid(byte[] uuid_sql)
         {
             // CAST(REVERSE(SUBSTRING(@uuid_sql, 9, 8)) AS binary(8)) + SUBSTRING(@uuid_sql, 1, 8)

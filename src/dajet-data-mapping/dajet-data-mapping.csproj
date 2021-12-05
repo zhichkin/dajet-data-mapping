@@ -9,10 +9,10 @@
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <Description>Library to work with 1C:Enterprise 8 application data directly using C#.
 Microsoft SQL Server and PostgreSQL databases are supported.</Description>
-    <PackageReleaseNotes>Library to work with 1C:Enterprise 8 application data directly using C#.
-This version supports Microsoft SQL Server only.</PackageReleaseNotes>
+    <PackageReleaseNotes>Added new GetIndexes function to SQLHelper class.</PackageReleaseNotes>
     <PackageProjectUrl>https://github.com/zhichkin/dajet-data-mapping</PackageProjectUrl>
     <RepositoryUrl>https://github.com/zhichkin/dajet-data-mapping</RepositoryUrl>
+    <Version>1.1.0</Version>
   </PropertyGroup>
 
   <ItemGroup>
