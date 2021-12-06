@@ -9,6 +9,8 @@ namespace DaJet.Data.Mapping
         public string MetadataName { get; set; }
         public string ConnectionString { get; set; }
         public ApplicationObject MetaObject { get; set; }
+        public IndexInfo Index { get; set; }
+        public List<FilterParameter> Filter { get; set; }
         public List<string> IgnoreProperties { get; set; } = new List<string>();
         public List<EntityDataMapper> TablePartMappers { get; set; } = new List<EntityDataMapper>();
     }

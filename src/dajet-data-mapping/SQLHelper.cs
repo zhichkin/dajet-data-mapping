@@ -36,15 +36,17 @@ namespace DaJet.Data
     }
     public sealed class IndexColumnInfo
     {
-        public IndexColumnInfo(string name, byte ordinal, bool included, bool nullable, bool descending)
+        public IndexColumnInfo(string name, string type, byte ordinal, bool included, bool nullable, bool descending)
         {
             Name = name;
+            TypeName = type;
             KeyOrdinal = ordinal;
             IsIncluded = included;  //  1 - CLUSTERED, 2 - NONCLUSTERED
             IsNullable = nullable;
             IsDescending = descending;
         }
         public string Name { get; private set; }
+        public string TypeName { get; private set; }
         public byte KeyOrdinal { get; private set; }
         public bool IsIncluded { get; private set; }
         public bool IsNullable { get; private set; }
@@ -213,13 +215,15 @@ namespace DaJet.Data
             sb.AppendLine(@"  c.is_descending_key  AS [IsDescending],");
             sb.AppendLine(@"  c.is_included_column AS [IsIncluded],");
             sb.AppendLine(@"  f.name               AS [ColumnName],");
+            sb.AppendLine(@"  t.name               AS [TypeName],");
             sb.AppendLine(@"  f.is_nullable        AS [IsNullable]");
             sb.AppendLine(@"FROM  sys.indexes AS i");
-            sb.AppendLine(@"INNER JOIN sys.tables AS t ON t.object_id = i.object_id");
-            sb.AppendLine(@"INNER JOIN sys.index_columns AS c ON c.object_id = t.object_id AND c.index_id = i.index_id");
-            sb.AppendLine(@"INNER JOIN sys.columns AS f ON f.object_id = t.object_id AND f.column_id = c.column_id");
-            sb.AppendLine(@"WHERE");
-            sb.AppendLine(@"  t.object_id = OBJECT_ID(@tableName) AND i.type IN (1, 2)");
+            sb.AppendLine(@"INNER JOIN sys.tables AS tbl ON tbl.object_id = i.object_id");
+            sb.AppendLine(@"INNER JOIN sys.index_columns AS c ON c.object_id = tbl.object_id AND c.index_id = i.index_id");
+            sb.AppendLine(@"INNER JOIN sys.columns AS f ON f.object_id = tbl.object_id AND f.column_id = c.column_id");
+            sb.AppendLine(@"INNER JOIN sys.types AS t ON t.system_type_id = f.system_type_id");
+            sb.AppendLine(@"WHERE t.system_type_id = t.user_type_id");
+            sb.AppendLine(@"  AND tbl.object_id = OBJECT_ID(@tableName) AND i.type IN (1, 2)");
             sb.AppendLine(@"ORDER BY");
             sb.AppendLine(@"  i.index_id    ASC,");
             sb.AppendLine(@"  c.key_ordinal ASC;");
@@ -264,6 +268,7 @@ namespace DaJet.Data
 
                             column = new IndexColumnInfo(
                                 reader.GetString("ColumnName"),
+                                reader.GetString("TypeName"),
                                 reader.GetByte("KeyOrdinal"),
                                 reader.GetBoolean("IsIncluded"),
                                 reader.GetBoolean("IsNullable"),

@@ -3,7 +3,9 @@ using Microsoft.Data.SqlClient;
 using System;
 using System.Collections.Generic;
 using System.Data;
+using System.Diagnostics;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 
 namespace DaJet.Data.Mapping
@@ -17,6 +19,12 @@ namespace DaJet.Data.Mapping
         public EntityDataMapper() { }
         public DataMapperOptions Options { get; private set; }
         public List<PropertyMapper> PropertyMappers { get; private set; } = new List<PropertyMapper>();
+
+        private struct PropertyOrdinal
+        {
+            internal int Ordinal;
+            internal MetadataProperty Property;
+        }
         private readonly Dictionary<string, int> CatalogPropertyOrder = new Dictionary<string, int>()
         {
             { "ЭтоГруппа",        0 }, // IsFolder           - bool (invert)
@@ -36,6 +44,9 @@ namespace DaJet.Data.Mapping
             { "Номер",            3 }, // Number             - string | number
             { "Проведён",         4 }  // Posted             - bool
         };
+        
+        
+        
         public EntityDataMapper Configure(DataMapperOptions options)
         {
             Options = options;
@@ -196,83 +207,9 @@ namespace DaJet.Data.Mapping
                 Options.TablePartMappers.Add(mapper);
             }
         }
+
+
         
-
-
-        public string GetTotalRowCountScript()
-        {
-            if (string.IsNullOrEmpty(SELECT_ENTITY_COUNT_SCRIPT))
-            {
-                StringBuilder script = new StringBuilder();
-
-                script.Append($"SELECT COUNT(*) FROM {Options.MetaObject.TableName} WITH(NOLOCK);");
-
-                SELECT_ENTITY_COUNT_SCRIPT = script.ToString();
-            }
-
-            return SELECT_ENTITY_COUNT_SCRIPT;
-        }
-        private string BuildSelectEntityScript(string tableAlias)
-        {
-            StringBuilder script = new StringBuilder();
-
-            script.Append("SELECT ");
-
-            for (int i = 0; i < PropertyMappers.Count; i++)
-            {
-                PropertyMappers[i].BuildSelectCommand(script, tableAlias);
-            }
-
-            script.Remove(script.Length - 2, 2); // remove ", " from the end
-
-            if (string.IsNullOrEmpty(tableAlias))
-            {
-                script.Append($" FROM {Options.MetaObject.TableName}");
-            }
-            else
-            {
-                script.Append($" FROM {Options.MetaObject.TableName} AS {tableAlias}");
-            }
-
-            return script.ToString();
-        }
-        public string GetSelectEntityPagingScript()
-        {
-            if (string.IsNullOrEmpty(SELECT_ENTITY_PAGING_SCRIPT))
-            {
-                StringBuilder script = new StringBuilder();
-
-                script.Append("WITH cte AS ");
-                script.Append($"(SELECT _IDRRef FROM {Options.MetaObject.TableName} ORDER BY _IDRRef ASC ");
-                script.Append("OFFSET @PageSize * (@PageNumber - 1) ROWS ");
-                script.Append("FETCH NEXT @PageSize ROWS ONLY) ");
-                script.Append(BuildSelectEntityScript("t"));
-                script.Append(" INNER JOIN cte ON t._IDRRef = cte._IDRRef;");
-
-                SELECT_ENTITY_PAGING_SCRIPT = script.ToString();
-            }
-
-            return SELECT_ENTITY_PAGING_SCRIPT;
-        }
-        public string GetSelectTablePartScript()
-        {
-            if (string.IsNullOrEmpty(SELECT_ENTITY_TABLE_PART_SCRIPT))
-            {
-                StringBuilder script = new StringBuilder();
-
-                MetadataProperty property = Options.MetaObject.Properties.Where(p => p.Name == "Ссылка").FirstOrDefault();
-                DatabaseField field = property.Fields[0];
-
-                script.Append(BuildSelectEntityScript(null));
-                script.Append($" WHERE {field.Name} = @entity ");
-                script.Append($"ORDER BY {field.Name} ASC, _KeyField ASC;");
-
-                SELECT_ENTITY_TABLE_PART_SCRIPT = script.ToString();
-            }
-
-            return SELECT_ENTITY_TABLE_PART_SCRIPT;
-        }
-
         public int GetTotalRowCount()
         {
             int rowCount = 0;
@@ -286,6 +223,20 @@ namespace DaJet.Data.Mapping
                     command.CommandType = CommandType.Text;
                     command.CommandText = GetTotalRowCountScript();
                     command.CommandTimeout = 10; // seconds
+
+                    if (Options.Filter != null && Options.Filter.Count > 0)
+                    {
+                        foreach (FilterParameter parameter in Options.Filter)
+                        {
+                            string parameterName = GetParameterNameByPath(parameter.Path);
+                            object parameterValue = parameter.Value;
+                            if (parameterValue is DateTime dateTime)
+                            {
+                                parameterValue = dateTime.AddYears(Options.InfoBase.YearOffset);
+                            }
+                            command.Parameters.AddWithValue(parameterName, parameterValue);
+                        }
+                    }
 
                     rowCount = (int)command.ExecuteScalar();
                 }
@@ -329,6 +280,53 @@ namespace DaJet.Data.Mapping
             }
             return null;
         }
+        public long TestGetEntityDataRows(int size, int page)
+        {
+            Stopwatch watcher = new Stopwatch();
+
+            watcher.Start();
+
+            using (SqlConnection connection = new SqlConnection(Options.ConnectionString))
+            {
+                connection.Open();
+
+                using (SqlCommand command = connection.CreateCommand())
+                {
+                    command.CommandType = CommandType.Text;
+                    command.CommandText = GetSelectEntityPagingScript();
+                    command.CommandTimeout = 15; // seconds
+                    command.Parameters.AddWithValue("PageSize", size);
+                    command.Parameters.AddWithValue("PageNumber", page);
+
+                    if (Options.Filter != null && Options.Filter.Count > 0)
+                    {
+                        foreach (FilterParameter parameter in Options.Filter)
+                        {
+                            string parameterName = GetParameterNameByPath(parameter.Path);
+                            object parameterValue = parameter.Value;
+                            if (parameterValue is DateTime dateTime)
+                            {
+                                parameterValue = dateTime.AddYears(Options.InfoBase.YearOffset);
+                            }
+                            command.Parameters.AddWithValue(parameterName, parameterValue);
+                        }
+                    }
+
+                    using (SqlDataReader reader = command.ExecuteReader())
+                    {
+                        while (reader.Read())
+                        {
+                            // do nothing ¯\_(ツ)_/¯
+                        }
+                        reader.Close();
+                    }
+                }
+            }
+
+            watcher.Stop();
+
+            return watcher.ElapsedMilliseconds;
+        }
         public IEnumerable<IDataReader> GetEntityDataRows(int size, int page)
         {
             using (SqlConnection connection = new SqlConnection(Options.ConnectionString))
@@ -342,6 +340,20 @@ namespace DaJet.Data.Mapping
                     command.CommandTimeout = 15; // seconds
                     command.Parameters.AddWithValue("PageSize", size);
                     command.Parameters.AddWithValue("PageNumber", page);
+
+                    if (Options.Filter != null && Options.Filter.Count > 0)
+                    {
+                        foreach (FilterParameter parameter in Options.Filter)
+                        {
+                            string parameterName = GetParameterNameByPath(parameter.Path);
+                            object parameterValue = parameter.Value;
+                            if (parameterValue is DateTime dateTime)
+                            {
+                                parameterValue = dateTime.AddYears(Options.InfoBase.YearOffset);
+                            }
+                            command.Parameters.AddWithValue(parameterName, parameterValue);
+                        }
+                    }
 
                     using (SqlDataReader reader = command.ExecuteReader())
                     {
@@ -378,10 +390,210 @@ namespace DaJet.Data.Mapping
                 }
             }
         }
-    }
-    internal struct PropertyOrdinal
-    {
-        internal int Ordinal;
-        internal MetadataProperty Property;
+
+
+
+        public void ResetScripts()
+        {
+            SELECT_ENTITY_COUNT_SCRIPT = string.Empty;
+            SELECT_ENTITY_PAGING_SCRIPT = string.Empty;
+            // SELECT_ENTITY_TABLE_PART_SCRIPT is not changing !
+        }
+
+        public string GetTotalRowCountScript()
+        {
+            if (string.IsNullOrEmpty(SELECT_ENTITY_COUNT_SCRIPT))
+            {
+                StringBuilder script = new StringBuilder();
+
+                script.Append($"SELECT COUNT(*) FROM {Options.MetaObject.TableName} WITH(NOLOCK)");
+
+                if (Options.Filter != null && Options.Filter.Count > 0)
+                {
+                    script.Append($" WHERE {BuildWhereClause(Options.Filter)}");
+                }
+
+                script.Append(";");
+
+                SELECT_ENTITY_COUNT_SCRIPT = script.ToString();
+            }
+
+            return SELECT_ENTITY_COUNT_SCRIPT;
+        }
+        
+        public string GetSelectEntityPagingScript()
+        {
+            if (string.IsNullOrEmpty(SELECT_ENTITY_PAGING_SCRIPT))
+            {
+                if (Options.Index == null)
+                {
+                    // default - use of clustered index
+                    SELECT_ENTITY_PAGING_SCRIPT = BuildSelectEntityPagingScript();
+                }
+                else
+                {
+                    // custom - use of selected by user index
+                    SELECT_ENTITY_PAGING_SCRIPT = BuildSelectEntityPagingScript(Options.Index, Options.Filter);
+                }
+            }
+
+            return SELECT_ENTITY_PAGING_SCRIPT;
+        }
+        private string BuildSelectEntityScript(string tableAlias)
+        {
+            StringBuilder script = new StringBuilder();
+
+            script.Append("SELECT ");
+
+            for (int i = 0; i < PropertyMappers.Count; i++)
+            {
+                PropertyMappers[i].BuildSelectCommand(script, tableAlias);
+            }
+
+            script.Remove(script.Length - 2, 2); // remove ", " from the end
+
+            if (string.IsNullOrEmpty(tableAlias))
+            {
+                script.Append($" FROM {Options.MetaObject.TableName}");
+            }
+            else
+            {
+                script.Append($" FROM {Options.MetaObject.TableName} AS {tableAlias}");
+            }
+
+            return script.ToString();
+        }
+        
+        public string BuildSelectEntityPagingScript()
+        {
+            StringBuilder script = new StringBuilder();
+
+            script.Append("WITH cte AS ");
+            script.Append($"(SELECT _IDRRef FROM {Options.MetaObject.TableName} ORDER BY _IDRRef ASC ");
+            script.Append("OFFSET @PageSize * (@PageNumber - 1) ROWS ");
+            script.Append("FETCH NEXT @PageSize ROWS ONLY) ");
+            script.Append(BuildSelectEntityScript("t"));
+            script.Append(" INNER JOIN cte ON t._IDRRef = cte._IDRRef;");
+
+            return script.ToString();
+        }
+        public string BuildSelectEntityPagingScript(IndexInfo index, List<FilterParameter> filter = null)
+        {
+            StringBuilder script = new StringBuilder();
+
+            script.Append("WITH cte AS ");
+            script.Append($"(SELECT _IDRRef FROM {Options.MetaObject.TableName} ");
+            if (filter != null && filter.Count > 0)
+            {
+                script.Append($"WHERE {BuildWhereClause(filter)} ");
+            }
+            script.Append($"ORDER BY {BuildOrderByClause(index)} ");
+            script.Append("OFFSET @PageSize * (@PageNumber - 1) ROWS ");
+            script.Append("FETCH NEXT @PageSize ROWS ONLY) ");
+            script.Append(BuildSelectEntityScript("t"));
+            script.Append(" INNER JOIN cte ON ");
+            script.Append(BuildJoinOnClause(index));
+            script.Append(";");
+
+            return script.ToString();
+        }
+        private string BuildOrderByClause(IndexInfo index)
+        {
+            StringBuilder clause = new StringBuilder();
+
+            foreach (IndexColumnInfo column in index.Columns)
+            {
+                if (clause.Length > 0)
+                {
+                    clause.Append(", ");
+                }
+                clause.Append($"{column.Name} {(column.IsDescending ? "DESC" : "ASC")}");
+            }
+
+            return clause.ToString();
+        }
+        private string BuildJoinOnClause(IndexInfo index)
+        {
+            return "t._IDRRef = cte._IDRRef"; // TODO: use clustered index info
+        }
+        private string BuildWhereClause(List<FilterParameter> filter)
+        {
+            if (filter != null && filter.Count == 0)
+            {
+                return string.Empty;
+            }
+
+            StringBuilder clause = new StringBuilder();
+
+            foreach (FilterParameter parameter in filter)
+            {
+                if (parameter.Value != null)
+                {
+                    string fieldName = GetDatabaseFieldByPath(parameter.Path);
+                    string _operator = GetComparisonOperatorSymbol(parameter.Operator);
+                    string paramName = GetParameterNameByPath(parameter.Path);
+
+                    if (clause.Length > 0)
+                    {
+                        clause.Append(" AND ");
+                    }
+
+                    clause.Append($"{fieldName} {_operator} @{paramName}");
+                }
+            }
+
+            return clause.ToString();
+        }
+        private string GetDatabaseFieldByPath(string path)
+        {
+            // TODO: multi-part path (example: Регистратор.Дата)
+            foreach (MetadataProperty property in Options.MetaObject.Properties)
+            {
+                if (property.Name == path)
+                {
+                    if (property.Fields.Count > 0)
+                    {
+                        return property.Fields[0].Name;
+                    }
+                }
+            }
+            return string.Empty;
+        }
+        private string GetParameterNameByPath(string path)
+        {
+            return path; // TODO: multi-part path (example: Регистратор.Дата)
+        }
+        private string GetComparisonOperatorSymbol(ComparisonOperator comparisonOperator)
+        {
+            if (comparisonOperator == ComparisonOperator.Equal) return "=";
+            else if (comparisonOperator == ComparisonOperator.NotEqual) return "<>";
+            else if (comparisonOperator == ComparisonOperator.Less) return "<";
+            else if (comparisonOperator == ComparisonOperator.LessOrEqual) return "<=";
+            else if (comparisonOperator == ComparisonOperator.Greater) return ">";
+            else if (comparisonOperator == ComparisonOperator.GreaterOrEqual) return ">=";
+            else if (comparisonOperator == ComparisonOperator.Contains) return "IN";
+            else if (comparisonOperator == ComparisonOperator.Between) return "BETWEEN";
+            
+            throw new ArgumentOutOfRangeException(nameof(comparisonOperator));
+        }
+
+        public string GetSelectTablePartScript()
+        {
+            if (string.IsNullOrEmpty(SELECT_ENTITY_TABLE_PART_SCRIPT))
+            {
+                StringBuilder script = new StringBuilder();
+
+                MetadataProperty property = Options.MetaObject.Properties.Where(p => p.Name == "Ссылка").FirstOrDefault();
+                DatabaseField field = property.Fields[0];
+
+                script.Append(BuildSelectEntityScript(null));
+                script.Append($" WHERE {field.Name} = @entity ");
+                script.Append($"ORDER BY {field.Name} ASC, _KeyField ASC;");
+
+                SELECT_ENTITY_TABLE_PART_SCRIPT = script.ToString();
+            }
+
+            return SELECT_ENTITY_TABLE_PART_SCRIPT;
+        }
     }
 }

@@ -8,11 +8,12 @@
     <Copyright>Zhichkin © 2021</Copyright>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <Description>Library to work with 1C:Enterprise 8 application data directly using C#.
-Microsoft SQL Server and PostgreSQL databases are supported.</Description>
-    <PackageReleaseNotes>Added new GetIndexes function to SQLHelper class.</PackageReleaseNotes>
+Microsoft SQL Server supported only.</Description>
+    <PackageReleaseNotes>1. Option of using alternative indexes to the clustered index is added.
+2. Filter by index columns having primitive data types is added.</PackageReleaseNotes>
     <PackageProjectUrl>https://github.com/zhichkin/dajet-data-mapping</PackageProjectUrl>
     <RepositoryUrl>https://github.com/zhichkin/dajet-data-mapping</RepositoryUrl>
-    <Version>1.1.0</Version>
+    <Version>2.0.0</Version>
   </PropertyGroup>
 
   <ItemGroup>

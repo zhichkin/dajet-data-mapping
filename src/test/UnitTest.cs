@@ -9,6 +9,7 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 
 namespace test
 {
@@ -209,7 +210,7 @@ namespace test
 
         [TestMethod] public void ShowIndexInfo()
         {
-            string metadataName = "Справочник.Партии";
+            string metadataName = "Документ.ЗаказКлиента";
 
             InfoBase infoBase = MetadataService.OpenInfoBase();
             ApplicationObject metaObject = infoBase.GetApplicationObjectByName(metadataName);
@@ -232,6 +233,7 @@ namespace test
                 {
                     Console.WriteLine($"- No: {column.KeyOrdinal}");
                     Console.WriteLine($"- Name: {column.Name}");
+                    Console.WriteLine($"- Type: {column.TypeName}");
                     Console.WriteLine($"- Nullable: {column.IsNullable}");
                     Console.WriteLine($"- Included: {column.IsIncluded}");
                     Console.WriteLine($"- Sort order: {(column.IsDescending ? "DESC" : "ASC")}");
@@ -282,6 +284,126 @@ namespace test
 
                 Console.WriteLine($"Messages sent = {messagesSent}");
             }
+        }
+
+        [TestMethod] public void TestCatalogScriptsWithIndexAndFilter()
+        {
+            string metadataName = "Справочник.Партии";
+
+            InfoBase infoBase = MetadataService.OpenInfoBase();
+
+            ApplicationObject metaObject = GetApplicationObjectByName(infoBase, metadataName);
+            if (metaObject == null)
+            {
+                Console.WriteLine($"Object \"{metadataName}\" is not found.");
+                return;
+            }
+
+            EntityDataMapper mapper = new EntityDataMapper();
+            mapper.Configure(new DataMapperOptions()
+            {
+                InfoBase = infoBase,
+                MetaObject = metaObject,
+                ConnectionString = MetadataService.ConnectionString
+            });
+            EntityJsonSerializer serializer = new EntityJsonSerializer(mapper);
+
+            int pageSize = 1000;
+            int pageNumber = 1;
+            TestEntityDataMapper(mapper, pageSize, pageNumber);
+
+            List<IndexInfo> indexes = SQLHelper.GetIndexes(MetadataService.ConnectionString, metaObject.TableName);
+            IndexInfo clustered_index = indexes.Where(i => i.IsClustered).FirstOrDefault();
+            IndexInfo bydescrip_index = indexes.Where(i => i.Name == "_Reference264_Descr").FirstOrDefault();
+
+            mapper.Options.Index = clustered_index;
+            mapper.Options.Filter = null;
+            mapper.ResetScripts();
+            TestEntityDataMapper(mapper, pageSize, pageNumber);
+
+            List<FilterParameter> filter = new List<FilterParameter>()
+            {
+                new FilterParameter()
+                {
+                    Path = "Наименование",
+                    Operator = ComparisonOperator.GreaterOrEqual,
+                    Value = "Партия 999990"
+                }
+            };
+
+            mapper.Options.Index = bydescrip_index;
+            mapper.Options.Filter = filter;
+            mapper.ResetScripts();
+            TestEntityDataMapper(mapper, pageSize, pageNumber);
+
+            pageSize = 2;
+            pageNumber = 5;
+            foreach (ReadOnlyMemory<byte> message in serializer.Serialize(pageSize, pageNumber))
+            {
+                Console.WriteLine(Encoding.UTF8.GetString(message.Span));
+            }
+        }
+        [TestMethod] public void TestDocumentScriptsWithIndexAndFilter()
+        {
+            string metadataName = "Документ.ЗаказКлиента";
+
+            InfoBase infoBase = MetadataService.OpenInfoBase();
+
+            ApplicationObject metaObject = GetApplicationObjectByName(infoBase, metadataName);
+            if (metaObject == null)
+            {
+                Console.WriteLine($"Object \"{metadataName}\" is not found.");
+                return;
+            }
+
+            EntityDataMapper mapper = new EntityDataMapper();
+            mapper.Configure(new DataMapperOptions()
+            {
+                InfoBase = infoBase,
+                MetaObject = metaObject,
+                ConnectionString = MetadataService.ConnectionString
+            });
+
+            int pageSize = 1000;
+            int pageNumber = 1;
+            TestEntityDataMapper(mapper, pageSize, pageNumber);
+
+            List<IndexInfo> indexes = SQLHelper.GetIndexes(MetadataService.ConnectionString, metaObject.TableName);
+            IndexInfo clustered_index = indexes.Where(i => i.IsClustered).FirstOrDefault();
+            IndexInfo bydocdate_index = indexes.Where(i => i.Name == "_Document356_ByDocDate").FirstOrDefault();
+
+            mapper.Options.Index = clustered_index;
+            mapper.Options.Filter = null;
+            mapper.ResetScripts();
+            TestEntityDataMapper(mapper, pageSize, pageNumber);
+
+            List<FilterParameter> filter = new List<FilterParameter>()
+            {
+                new FilterParameter()
+                {
+                    Path = "Дата",
+                    Operator = ComparisonOperator.Greater,
+                    Value = DateTime.Parse("2020-10-01T00:00:00")
+                }
+            };
+
+            mapper.Options.Index = bydocdate_index;
+            mapper.Options.Filter = filter;
+            mapper.ResetScripts();
+            TestEntityDataMapper(mapper, pageSize, pageNumber);
+        }
+        private void TestEntityDataMapper(EntityDataMapper mapper, int pageSize, int pageNumber)
+        {
+            Console.WriteLine($"Total row count = {mapper.GetTotalRowCount()}");
+            Console.WriteLine();
+            Console.WriteLine($"Test: {mapper.TestGetEntityDataRows(pageSize, pageNumber)} ms");
+            Console.WriteLine();
+            Console.WriteLine(mapper.GetTotalRowCountScript());
+            Console.WriteLine();
+            Console.WriteLine(mapper.GetSelectEntityPagingScript());
+            Console.WriteLine();
+            Console.WriteLine(mapper.GetSelectTablePartScript());
+            Console.WriteLine();
         }
     }
 }
