@@ -82,7 +82,7 @@ namespace DaJet.Data.Mapping
                 {
                     command.CommandType = CommandType.Text;
                     command.CommandText = GetTotalRowCountScript();
-                    command.CommandTimeout = 10; // seconds
+                    command.CommandTimeout = 60; // seconds
 
                     rowCount = (int)command.ExecuteScalar();
                 }

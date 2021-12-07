@@ -5,7 +5,6 @@ using System.Collections.Generic;
 using System.Data;
 using System.Diagnostics;
 using System.Linq;
-using System.Reflection;
 using System.Text;
 
 namespace DaJet.Data.Mapping
@@ -227,7 +226,7 @@ namespace DaJet.Data.Mapping
                 {
                     command.CommandType = CommandType.Text;
                     command.CommandText = GetTotalRowCountScript();
-                    command.CommandTimeout = 10; // seconds
+                    command.CommandTimeout = Options.CommandTimeout; // seconds
 
                     ConfigureQueryParameters(command, Options.Filter);
 
@@ -287,7 +286,7 @@ namespace DaJet.Data.Mapping
                 {
                     command.CommandType = CommandType.Text;
                     command.CommandText = GetSelectEntityPagingScript();
-                    command.CommandTimeout = 15; // seconds
+                    command.CommandTimeout = Options.CommandTimeout; // seconds
                     command.Parameters.AddWithValue("PageSize", size);
                     command.Parameters.AddWithValue("PageNumber", page);
 
@@ -318,7 +317,7 @@ namespace DaJet.Data.Mapping
                 {
                     command.CommandType = CommandType.Text;
                     command.CommandText = GetSelectEntityPagingScript();
-                    command.CommandTimeout = 15; // seconds
+                    command.CommandTimeout = Options.CommandTimeout; // seconds
                     command.Parameters.AddWithValue("PageSize", size);
                     command.Parameters.AddWithValue("PageNumber", page);
 
@@ -345,7 +344,7 @@ namespace DaJet.Data.Mapping
                 {
                     command.CommandType = CommandType.Text;
                     command.CommandText = GetSelectTablePartScript();
-                    command.CommandTimeout = 15; // seconds
+                    command.CommandTimeout = Options.CommandTimeout; // seconds
                     command.Parameters.AddWithValue("entity", SQLHelper.GetSqlUuid(entity.Identity));
 
                     using (SqlDataReader reader = command.ExecuteReader())

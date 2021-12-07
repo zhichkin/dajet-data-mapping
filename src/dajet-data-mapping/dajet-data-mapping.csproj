@@ -9,14 +9,12 @@
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <Description>Library to work with 1C:Enterprise 8 application data directly using C#.
 Microsoft SQL Server supported only.</Description>
-    <PackageReleaseNotes>1. Option of using alternative indexes to the clustered index is added.
-2. Filter by index columns having primitive data types is added.
-3. Filter parameters naming and mapping fix.
-
-</PackageReleaseNotes>
+    <PackageReleaseNotes>Added a new CommandTimeout property to the DataMapperOptions class.
+This property is used to set the SqlCommand execution timeout.
+The default value is 60 seconds.</PackageReleaseNotes>
     <PackageProjectUrl>https://github.com/zhichkin/dajet-data-mapping</PackageProjectUrl>
     <RepositoryUrl>https://github.com/zhichkin/dajet-data-mapping</RepositoryUrl>
-    <Version>2.0.1</Version>
+    <Version>2.0.2</Version>
   </PropertyGroup>
 
   <ItemGroup>

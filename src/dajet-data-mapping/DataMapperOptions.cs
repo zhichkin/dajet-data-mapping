@@ -8,6 +8,7 @@ namespace DaJet.Data.Mapping
         public InfoBase InfoBase { get; set; }
         public string MetadataName { get; set; }
         public string ConnectionString { get; set; }
+        public int CommandTimeout { get; set; } = 60; // seconds
         public ApplicationObject MetaObject { get; set; }
         public IndexInfo Index { get; set; }
         public List<FilterParameter> Filter { get; set; }
