@@ -9,7 +9,11 @@
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <Description>Library to work with 1C:Enterprise 8 application data directly using C#.
 Microsoft SQL Server supported only.</Description>
-    <PackageReleaseNotes>Filter parameters naming and mapping fix</PackageReleaseNotes>
+    <PackageReleaseNotes>1. Option of using alternative indexes to the clustered index is added.
+2. Filter by index columns having primitive data types is added.
+3. Filter parameters naming and mapping fix.
+
+</PackageReleaseNotes>
     <PackageProjectUrl>https://github.com/zhichkin/dajet-data-mapping</PackageProjectUrl>
     <RepositoryUrl>https://github.com/zhichkin/dajet-data-mapping</RepositoryUrl>
     <Version>2.0.1</Version>
