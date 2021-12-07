@@ -224,19 +224,7 @@ namespace DaJet.Data.Mapping
                     command.CommandText = GetTotalRowCountScript();
                     command.CommandTimeout = 10; // seconds
 
-                    if (Options.Filter != null && Options.Filter.Count > 0)
-                    {
-                        foreach (FilterParameter parameter in Options.Filter)
-                        {
-                            string parameterName = GetParameterNameByPath(parameter.Path);
-                            object parameterValue = parameter.Value;
-                            if (parameterValue is DateTime dateTime)
-                            {
-                                parameterValue = dateTime.AddYears(Options.InfoBase.YearOffset);
-                            }
-                            command.Parameters.AddWithValue(parameterName, parameterValue);
-                        }
-                    }
+                    ConfigureQueryParameters(command, Options.Filter);
 
                     rowCount = (int)command.ExecuteScalar();
                 }
@@ -298,19 +286,7 @@ namespace DaJet.Data.Mapping
                     command.Parameters.AddWithValue("PageSize", size);
                     command.Parameters.AddWithValue("PageNumber", page);
 
-                    if (Options.Filter != null && Options.Filter.Count > 0)
-                    {
-                        foreach (FilterParameter parameter in Options.Filter)
-                        {
-                            string parameterName = GetParameterNameByPath(parameter.Path);
-                            object parameterValue = parameter.Value;
-                            if (parameterValue is DateTime dateTime)
-                            {
-                                parameterValue = dateTime.AddYears(Options.InfoBase.YearOffset);
-                            }
-                            command.Parameters.AddWithValue(parameterName, parameterValue);
-                        }
-                    }
+                    ConfigureQueryParameters(command, Options.Filter);
 
                     using (SqlDataReader reader = command.ExecuteReader())
                     {
@@ -341,19 +317,7 @@ namespace DaJet.Data.Mapping
                     command.Parameters.AddWithValue("PageSize", size);
                     command.Parameters.AddWithValue("PageNumber", page);
 
-                    if (Options.Filter != null && Options.Filter.Count > 0)
-                    {
-                        foreach (FilterParameter parameter in Options.Filter)
-                        {
-                            string parameterName = GetParameterNameByPath(parameter.Path);
-                            object parameterValue = parameter.Value;
-                            if (parameterValue is DateTime dateTime)
-                            {
-                                parameterValue = dateTime.AddYears(Options.InfoBase.YearOffset);
-                            }
-                            command.Parameters.AddWithValue(parameterName, parameterValue);
-                        }
-                    }
+                    ConfigureQueryParameters(command, Options.Filter);
 
                     using (SqlDataReader reader = command.ExecuteReader())
                     {
@@ -390,7 +354,28 @@ namespace DaJet.Data.Mapping
                 }
             }
         }
+        ///<summary>The method is correlated with this one <see cref="BuildWhereClause"/></summary>
+        private void ConfigureQueryParameters(SqlCommand command, List<FilterParameter> filter)
+        {
+            if (Options.Filter == null || Options.Filter.Count == 0)
+            {
+                return;
+            }
 
+            for (int p = 0; p < Options.Filter.Count; p++)
+            {
+                FilterParameter parameter = Options.Filter[p];
+
+                object value = parameter.Value;
+
+                if (value is DateTime dateTime)
+                {
+                    value = dateTime.AddYears(Options.InfoBase.YearOffset);
+                }
+
+                command.Parameters.AddWithValue($"p{p}", value);
+            }
+        }
 
 
         public void ResetScripts()
@@ -525,21 +510,19 @@ namespace DaJet.Data.Mapping
 
             StringBuilder clause = new StringBuilder();
 
-            foreach (FilterParameter parameter in filter)
+            for (int p = 0; p < filter.Count; p++)
             {
-                if (parameter.Value != null)
+                FilterParameter parameter = filter[p];
+
+                string fieldName = GetDatabaseFieldByPath(parameter.Path);
+                string _operator = GetComparisonOperatorSymbol(parameter.Operator);
+
+                if (clause.Length > 0)
                 {
-                    string fieldName = GetDatabaseFieldByPath(parameter.Path);
-                    string _operator = GetComparisonOperatorSymbol(parameter.Operator);
-                    string paramName = GetParameterNameByPath(parameter.Path);
-
-                    if (clause.Length > 0)
-                    {
-                        clause.Append(" AND ");
-                    }
-
-                    clause.Append($"{fieldName} {_operator} @{paramName}");
+                    clause.Append(" AND ");
                 }
+
+                clause.Append($"{fieldName} {_operator} @p{p}");
             }
 
             return clause.ToString();
@@ -558,10 +541,6 @@ namespace DaJet.Data.Mapping
                 }
             }
             return string.Empty;
-        }
-        private string GetParameterNameByPath(string path)
-        {
-            return path; // TODO: multi-part path (example: Регистратор.Дата)
         }
         private string GetComparisonOperatorSymbol(ComparisonOperator comparisonOperator)
         {

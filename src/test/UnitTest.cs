@@ -330,7 +330,6 @@ namespace test
                     Value = "Партия 999990"
                 }
             };
-
             mapper.Options.Index = bydescrip_index;
             mapper.Options.Filter = filter;
             mapper.ResetScripts();
@@ -338,6 +337,32 @@ namespace test
 
             pageSize = 2;
             pageNumber = 5;
+            foreach (ReadOnlyMemory<byte> message in serializer.Serialize(pageSize, pageNumber))
+            {
+                Console.WriteLine(Encoding.UTF8.GetString(message.Span));
+            }
+
+            filter = new List<FilterParameter>()
+            {
+                new FilterParameter()
+                {
+                    Path = "Наименование",
+                    Operator = ComparisonOperator.GreaterOrEqual,
+                    Value = "Партия 999990"
+                },
+                new FilterParameter()
+                {
+                    Path = "Наименование",
+                    Operator = ComparisonOperator.Less,
+                    Value = "Партия 999995"
+                }
+            };
+            mapper.Options.Filter = filter;
+            mapper.ResetScripts();
+            TestEntityDataMapper(mapper, pageSize, pageNumber);
+
+            pageSize = 10;
+            pageNumber = 1;
             foreach (ReadOnlyMemory<byte> message in serializer.Serialize(pageSize, pageNumber))
             {
                 Console.WriteLine(Encoding.UTF8.GetString(message.Span));
