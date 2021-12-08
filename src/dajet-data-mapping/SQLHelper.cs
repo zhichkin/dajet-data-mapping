@@ -22,7 +22,7 @@ namespace DaJet.Data
     {
         public IndexInfo(string name, bool unique, bool clustered, bool primaryKey)
         {
-            Name = name;
+            Name = name ?? throw new ArgumentNullException(nameof(name));
             IsUnique = unique;
             IsClustered = clustered;  //  1 - CLUSTERED, 2 - NONCLUSTERED
             IsPrimaryKey = primaryKey;
@@ -33,12 +33,13 @@ namespace DaJet.Data
         public bool IsPrimaryKey { get; private set; }
         public List<IndexColumnInfo> Columns { get; } = new List<IndexColumnInfo>();
         public List<IndexColumnInfo> Includes { get; } = new List<IndexColumnInfo>();
+        public override string ToString() { return Name; }
     }
     public sealed class IndexColumnInfo
     {
         public IndexColumnInfo(string name, string type, byte ordinal, bool included, bool nullable, bool descending)
         {
-            Name = name;
+            Name = name ?? throw new ArgumentNullException(nameof(name));
             TypeName = type;
             KeyOrdinal = ordinal;
             IsIncluded = included;  //  1 - CLUSTERED, 2 - NONCLUSTERED
@@ -51,6 +52,7 @@ namespace DaJet.Data
         public bool IsIncluded { get; private set; }
         public bool IsNullable { get; private set; }
         public bool IsDescending { get; private set; } // 0 - ASC, 1 - DESC
+        public override string ToString() { return Name; }
     }
     public sealed class ClusteredIndexInfo
     {

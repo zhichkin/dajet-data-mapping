@@ -186,27 +186,7 @@ namespace test
             Console.WriteLine();
             Console.WriteLine(mapper.GetSelectTablePartScript());
         }
-        [TestMethod] public void BuildSelectRegisterScripts()
-        {
-            string metadataName = "–егистр—ведений.ќтветственныеЋицајптек";
-
-            InfoBase infoBase = MetadataService.OpenInfoBase();
-
-            ApplicationObject metaObject = GetApplicationObjectByName(infoBase, metadataName);
-            if (metaObject == null)
-            {
-                Console.WriteLine($"Object \"{metadataName}\" is not found.");
-                return;
-            }
-
-            ClusteredIndexInfo indexInfo = SQLHelper.GetClusteredIndexInfo(MetadataService.ConnectionString, metaObject.TableName);
-
-            RegisterDataMapper mapper = new RegisterDataMapper(infoBase, metaObject, indexInfo);
-
-            Console.WriteLine(mapper.GetTotalRowCountScript());
-            Console.WriteLine();
-            Console.WriteLine(mapper.GetSelectRegisterPagingScript());
-        }
+        
 
         [TestMethod] public void ShowIndexInfo()
         {

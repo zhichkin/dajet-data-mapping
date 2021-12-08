@@ -44,13 +44,6 @@ namespace DaJet.Data.Mapping
             { "Проведён",         4 }  // Posted             - bool
         };
 
-        // 1. Recorder
-        // 2. Period
-        // 3. RecordType { Receipt, Expense }
-        // 4. Active
-        //
-        // Не сериализуется: НомерСтроки
-
         public EntityDataMapper Configure(DataMapperOptions options)
         {
             Options = options;
