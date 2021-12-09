@@ -10,6 +10,8 @@ namespace DaJet.Data.Mapping
         private const string CONST_TYPE_ENUM = "jcfg:EnumRef";
         private const string CONST_TYPE_CATALOG = "jcfg:CatalogRef";
         private const string CONST_TYPE_DOCUMENT = "jcfg:DocumentRef";
+        private const string CONST_TYPE_EXCHANGE_PLAN = "jcfg:ExchangePlanRef";
+        private const string CONST_TYPE_CHARACTERISTIC = "jcfg:ChartOfCharacteristicTypesRef";
 
         private int ValueOrdinal = -1;
         private int NumberOrdinal = -1;
@@ -22,12 +24,14 @@ namespace DaJet.Data.Mapping
 
         public InfoBase InfoBase { get; }
         public MetadataProperty Property { get; }
+        public ApplicationObject MetaObject { get; }
         public Enumeration Enumeration { get; private set; }
 
-        internal PropertyMapper(InfoBase infoBase, MetadataProperty property)
+        internal PropertyMapper(InfoBase infoBase, ApplicationObject parent, MetadataProperty property)
         {
             InfoBase = infoBase;
             Property = property;
+            MetaObject = parent;
         }
         internal void Initialize(ref int ordinal)
         {
@@ -44,7 +48,7 @@ namespace DaJet.Data.Mapping
 
                 if (purpose == FieldPurpose.Value)
                 {
-                    ValueOrdinal = ordinal; // 
+                    ValueOrdinal = ordinal;
                 }
                 else if (purpose == FieldPurpose.Discriminator)
                 {
@@ -84,7 +88,7 @@ namespace DaJet.Data.Mapping
                 }
                 else
                 {
-                    // TODO: ingnore this kind of the field purpose !?
+                    // this should not happen =)
                 }
             }
         }
@@ -130,18 +134,15 @@ namespace DaJet.Data.Mapping
             }
             return GetSingleValue(reader);
         }
-        private string GetEnumValue(Guid uuid)
+        private string GetEnumValue(Enumeration enumeration, Guid value)
         {
-            if (Enumeration == null) return string.Empty;
-
-            for (int i = 0; i < Enumeration.Values.Count; i++)
+            for (int i = 0; i < enumeration.Values.Count; i++)
             {
-                if (Enumeration.Values[i].Uuid == uuid)
+                if (enumeration.Values[i].Uuid == value)
                 {
-                    return Enumeration.Values[i].Name;
+                    return enumeration.Values[i].Name;
                 }
             }
-
             return string.Empty;
         }
         private object GetSingleValue(IDataReader reader)
@@ -178,9 +179,9 @@ namespace DaJet.Data.Mapping
             else if (Property.PropertyType.CanBeDateTime)
             {
                 DateTime dateTime = reader.GetDateTime(ValueOrdinal);
-                if (dateTime.Year > 4000)
+                if (InfoBase.YearOffset > 0)
                 {
-                    dateTime = dateTime.AddYears(-2000);
+                    dateTime = dateTime.AddYears(-InfoBase.YearOffset);
                 }
                 return dateTime;
             }
@@ -188,31 +189,15 @@ namespace DaJet.Data.Mapping
             {
                 Guid uuid = new Guid(SQLHelper.Get1CUuid((byte[])reader.GetValue(ValueOrdinal)));
 
-                if (Property.PropertyType.ReferenceTypeCode == 0) // TODO: should be fixed in DaJet.Metadata library
-                {
-                    // NOTE: Property.PropertyType.ReferenceTypeUuid for Owner property is a FileName, not metdata object Uuid !!!
-                    if (InfoBase.Catalogs.TryGetValue(Property.PropertyType.ReferenceTypeUuid, out ApplicationObject owner1))
-                    {
-                        Property.PropertyType.ReferenceTypeCode = owner1.TypeCode;
-                    }
-                    else if (InfoBase.Characteristics.TryGetValue(Property.PropertyType.ReferenceTypeUuid, out ApplicationObject owner2))
-                    {
-                        Property.PropertyType.ReferenceTypeCode = owner2.TypeCode;
-                    }
-                }
-
                 if (Enumeration != null)
                 {
-                    return new EntityRef(Property.PropertyType.ReferenceTypeCode, uuid, Enumeration.Name, GetEnumValue(uuid));
+                    return new EntityRef(Property.PropertyType.ReferenceTypeCode, uuid,
+                        CONST_TYPE_ENUM + "." + Enumeration.Name, GetEnumValue(Enumeration, uuid));
                 }
-                else
-                {
-                    return new EntityRef(Property.PropertyType.ReferenceTypeCode, uuid);
-                }
+                return GetEntityRef(Property, uuid);
             }
-            
-            // TODO: undefined property type ?
-            return null;
+
+            return null; // this should not happen
         }
         private object GetMultipleValue(IDataReader reader)
         {
@@ -233,9 +218,9 @@ namespace DaJet.Data.Mapping
             else if (discriminator == 4) // Дата
             {
                 DateTime dateTime = reader.GetDateTime(DateTimeOrdinal);
-                if (dateTime.Year > 4000)
+                if (InfoBase.YearOffset > 0)
                 {
-                    dateTime = dateTime.AddYears(-2000);
+                    dateTime = dateTime.AddYears(-InfoBase.YearOffset);
                 }
                 return dateTime;
             }
@@ -248,8 +233,7 @@ namespace DaJet.Data.Mapping
                 return GetObjectValue(reader);
             }
             
-            // TODO: unknown discriminator ?
-            return null;
+            return null; // unknown discriminator - this should not happen
         }
         private object GetObjectValue(IDataReader reader)
         {
@@ -259,26 +243,96 @@ namespace DaJet.Data.Mapping
 
             return GetEntityRef(typeCode, uuid);
         }
-        public EntityRef GetEntityRef(int typeCode, Guid uuid)
+        private EntityRef GetEntityRef(int typeCode, Guid uuid)
         {
             if (InfoBase.ReferenceTypeCodes.TryGetValue(typeCode, out ApplicationObject metaObject))
             {
                 if (metaObject is Enumeration enumeration)
                 {
-                    return new EntityRef(typeCode, uuid, CONST_TYPE_ENUM + "." + enumeration.Name, GetEnumValue(uuid));
+                    return new EntityRef(typeCode, uuid, CONST_TYPE_ENUM + "." + enumeration.Name, GetEnumValue(enumeration, uuid));
                 }
-                else if (metaObject is Catalog catalog)
+                else if (metaObject is Catalog)
                 {
-                    return new EntityRef(typeCode, uuid, CONST_TYPE_CATALOG + "." + catalog.Name);
+                    return new EntityRef(typeCode, uuid, CONST_TYPE_CATALOG + "." + metaObject.Name);
                 }
-                else if (metaObject is Document document)
+                else if (metaObject is Document)
                 {
-                    return new EntityRef(typeCode, uuid, CONST_TYPE_DOCUMENT + "." + document.Name);
+                    return new EntityRef(typeCode, uuid, CONST_TYPE_DOCUMENT + "." + metaObject.Name);
+                }
+                else if (metaObject is Publication)
+                {
+                    return new EntityRef(typeCode, uuid, CONST_TYPE_EXCHANGE_PLAN + "." + metaObject.Name);
+                }
+                else if (metaObject is Characteristic)
+                {
+                    return new EntityRef(typeCode, uuid, CONST_TYPE_CHARACTERISTIC + "." + metaObject.Name);
                 }
             }
 
-            // TODO: unsupported reference type ?
-            return null;
+            return null; // unknown type code - this should not happen
+        }
+        private EntityRef GetEntityRef(MetadataProperty property, Guid uuid)
+        {
+            if (property.PropertyType.IsMultipleType
+                || !property.PropertyType.CanBeReference
+                || Property.PropertyType.ReferenceTypeUuid == Guid.Empty)
+            {
+                return null;
+            }
+
+            if (Property.PropertyType.ReferenceTypeCode != 0)
+            {
+                return GetEntityRef(Property.PropertyType.ReferenceTypeCode, uuid);
+            }
+
+            // TODO: ReferenceTypeCode == 0 this should be fixed in DaJet.Metadata library
+
+            if (InfoBase.ReferenceTypeUuids.TryGetValue(Property.PropertyType.ReferenceTypeUuid, out ApplicationObject propertyType))
+            {
+                Property.PropertyType.ReferenceTypeCode = propertyType.TypeCode; // patch metadata
+
+                if (propertyType is Enumeration enumeration)
+                {
+                    return new EntityRef(propertyType.TypeCode, uuid, CONST_TYPE_ENUM + "." + enumeration.Name, GetEnumValue(enumeration, uuid));
+                }
+                else if (propertyType is Catalog)
+                {
+                    return new EntityRef(propertyType.TypeCode, uuid, CONST_TYPE_CATALOG + "." + propertyType.Name);
+                }
+                else if (propertyType is Document)
+                {
+                    return new EntityRef(propertyType.TypeCode, uuid, CONST_TYPE_DOCUMENT + "." + propertyType.Name);
+                }
+                else if (propertyType is Publication)
+                {
+                    return new EntityRef(propertyType.TypeCode, uuid, CONST_TYPE_EXCHANGE_PLAN + "." + propertyType.Name);
+                }
+                else if (propertyType is Characteristic)
+                {
+                    return new EntityRef(propertyType.TypeCode, uuid, CONST_TYPE_CHARACTERISTIC + "." + propertyType.Name);
+                }
+            }
+
+            if (property.Name == "Владелец")
+            {
+                if (MetaObject is Catalog || MetaObject is Characteristic)
+                {
+                    // TODO: this issue should be fixed in DaJet.Metadata library
+                    // NOTE: file names lookup - Property.PropertyType.ReferenceTypeUuid for Owner property is a FileName, not metadata object Uuid !!!
+                    if (InfoBase.Catalogs.TryGetValue(Property.PropertyType.ReferenceTypeUuid, out ApplicationObject catalog))
+                    {
+                        Property.PropertyType.ReferenceTypeCode = catalog.TypeCode; // patch metadata
+                        return GetEntityRef(Property.PropertyType.ReferenceTypeCode, uuid);
+                    }
+                    else if (InfoBase.Characteristics.TryGetValue(Property.PropertyType.ReferenceTypeUuid, out ApplicationObject characteristic))
+                    {
+                        Property.PropertyType.ReferenceTypeCode = characteristic.TypeCode; // patch metadata
+                        return GetEntityRef(Property.PropertyType.ReferenceTypeCode, uuid);
+                    }
+                }
+            }
+
+            return new EntityRef(Property.PropertyType.ReferenceTypeCode, uuid);
         }
     }
 }

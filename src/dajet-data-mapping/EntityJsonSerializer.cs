@@ -11,7 +11,7 @@ using System.Text.Unicode;
 
 namespace DaJet.Json
 {
-    public sealed class EntityJsonSerializer
+    public sealed class EntityJsonSerializer : IDaJetJsonSerializer
     {
         private const string CONST_TYPE = "#type";
         private const string CONST_VALUE = "#value";
@@ -19,9 +19,6 @@ namespace DaJet.Json
         private const string CONST_TYPE_DECIMAL = "jxs:decimal";
         private const string CONST_TYPE_BOOLEAN = "jxs:boolean";
         private const string CONST_TYPE_DATETIME = "jxs:dateTime";
-        private const string CONST_TYPE_ENUM_REF = "jcfg:EnumRef";
-        private const string CONST_TYPE_CATALOG_REF = "jcfg:CatalogRef";
-        private const string CONST_TYPE_DOCUMENT_REF = "jcfg:DocumentRef";
         private const string CONST_TYPE_CATALOG_OBJ = "jcfg:CatalogObject";
         private const string CONST_TYPE_DOCUMENT_OBJ = "jcfg:DocumentObject";
 
@@ -128,14 +125,10 @@ namespace DaJet.Json
                     }
                     else if (DataMapper.PropertyMappers[i].Property.Name == "Владелец")
                     {
-                        EntityRef owner = (EntityRef)value;
-                        value = DataMapper.PropertyMappers[i].GetEntityRef(owner.TypeCode, owner.Identity);
-
                         if (!PropertyAliases.TryGetValue(DataMapper.PropertyMappers[i].Property.Name, out string propertyName))
                         {
                             propertyName = DataMapper.PropertyMappers[i].Property.Name;
                         }
-
                         WriteObjectValueToJson(writer, propertyName, value);
                         continue;
                     }

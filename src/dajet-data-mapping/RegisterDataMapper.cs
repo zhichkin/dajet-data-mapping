@@ -93,8 +93,8 @@ namespace DaJet.Data.Mapping
                     continue;
                 }
 
-                PropertyMapper mapper = new PropertyMapper(Options.InfoBase, property);
-                
+                PropertyMapper mapper = new PropertyMapper(Options.InfoBase, Options.MetaObject, property);
+
                 mapper.Initialize(ref ordinal);
 
                 PropertyMappers.Add(mapper);
@@ -173,6 +173,11 @@ namespace DaJet.Data.Mapping
             }
         }
 
+        public void ResetScripts()
+        {
+            SELECT_COUNT_SCRIPT = string.Empty;
+            SELECT_PAGING_SCRIPT = string.Empty;
+        }
         public string GetSelectCountScript()
         {
             if (string.IsNullOrEmpty(SELECT_COUNT_SCRIPT))
@@ -191,7 +196,7 @@ namespace DaJet.Data.Mapping
 
             return SELECT_PAGING_SCRIPT;
         }
-        
+
         public string BuildSelectCountScript()
         {
             StringBuilder script = new StringBuilder();
@@ -231,7 +236,7 @@ namespace DaJet.Data.Mapping
 
             return script.ToString();
         }
-        
+
 
         public string BuildSelectPagingScript()
         {
@@ -358,7 +363,7 @@ namespace DaJet.Data.Mapping
 
 
 
-        private IndexInfo GetPagingIndex()
+        public IndexInfo GetPagingIndex()
         {
             List<IndexInfo> indexes = SQLHelper.GetIndexes(Options.ConnectionString, Options.MetaObject.TableName);
 
@@ -386,9 +391,7 @@ namespace DaJet.Data.Mapping
         {
             List<IndexInfo> indexes = SQLHelper.GetIndexes(Options.ConnectionString, Options.MetaObject.TableName);
 
-            MetadataProperty period = GetPeriodProperty();
-            List<MetadataProperty> template = GetDimensions();
-            template.Insert(0, period);
+            List<MetadataProperty> template = GetSelectionProperties();
 
             return GetUniqueIndexByTemplate(indexes, template);
         }
@@ -469,6 +472,39 @@ namespace DaJet.Data.Mapping
             }
 
             return null;
+        }
+
+
+        public List<MetadataProperty> GetSelectionProperties()
+        {
+            if (Options.MetaObject is InformationRegister register)
+            {
+                if (register.UseRecorder) // Подчинение регистратору
+                {
+                    // TODO
+                    return null; // Непериодический или Периодический или Периодический по позиции регистратора
+                }
+                else if (register.Periodicity == RegisterPeriodicity.None)
+                {
+                    // TODO
+                    return null; // Независимый и Непериодический
+                }
+                else
+                {
+                    return GetPeriodicRegisterSelectionProperties(); // Независимый и Периодический
+                }
+            }
+            return null; // TODO ?
+        }
+        private List<MetadataProperty> GetPeriodicRegisterSelectionProperties()
+        {
+            MetadataProperty period = GetPeriodProperty();
+            
+            List<MetadataProperty> selection = GetDimensions();
+
+            selection.Insert(0, period);
+            
+            return selection;
         }
     }
 }

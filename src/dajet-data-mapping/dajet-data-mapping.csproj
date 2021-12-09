@@ -9,12 +9,11 @@
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <Description>Library to work with 1C:Enterprise 8 application data directly using C#.
 Microsoft SQL Server supported only.</Description>
-    <PackageReleaseNotes>Added a new CommandTimeout property to the DataMapperOptions class.
-This property is used to set the SqlCommand execution timeout.
-The default value is 60 seconds.</PackageReleaseNotes>
+    <PackageReleaseNotes>1. Periodic information register mapping and serialization.
+2. Refactoring and bug fixes.</PackageReleaseNotes>
     <PackageProjectUrl>https://github.com/zhichkin/dajet-data-mapping</PackageProjectUrl>
     <RepositoryUrl>https://github.com/zhichkin/dajet-data-mapping</RepositoryUrl>
-    <Version>2.0.2</Version>
+    <Version>2.1.0</Version>
   </PropertyGroup>
 
   <ItemGroup>

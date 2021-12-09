@@ -14,13 +14,13 @@ namespace test
         private readonly InfoBase InfoBase;
         private readonly IMetadataService MetadataService;
 
-        private const string ПериодическийРегистрСведений = "РегистрСведений.АссортиментнаяМатрица";
+        private const string ПериодическийРегистрСведений = "РегистрСведений.ПериодическийРегистрСведений";
 
         public TestRegisterSelectScripts()
         {
             MetadataService = new MetadataService()
                 .UseDatabaseProvider(DatabaseProvider.SQLServer)
-                .UseConnectionString("Data Source=zhichkin;Initial Catalog=cerberus;Integrated Security=True");
+                .UseConnectionString("Data Source=zhichkin;Initial Catalog=dajet-metadata;Integrated Security=True");
             
             InfoBase = MetadataService.OpenInfoBase();
         }
@@ -143,28 +143,6 @@ namespace test
             mapper.Options.Filter = filter;
 
             Console.WriteLine(mapper.BuildSelectPagingScript());
-        }
-
-        [TestMethod] public void Json_ПериодическийРегистрСведений()
-        {
-            RegisterDataMapper mapper = GetDataMapper(ПериодическийРегистрСведений);
-            mapper.Options.Filter = new List<FilterParameter>()
-            {
-                new FilterParameter()
-                {
-                    Path = "Период",
-                    Operator = ComparisonOperator.Equal,
-                    Value = new DateTime(2021, 12, 1)
-                }
-            };
-            RegisterJsonSerializer serializer = new RegisterJsonSerializer(mapper);
-
-            int pageSize = 100;
-            int pageNumber = 1;
-            foreach (ReadOnlyMemory<byte> bytes in serializer.Serialize(pageSize, pageNumber))
-            {
-                Console.WriteLine(Encoding.UTF8.GetString(bytes.Span));
-            }
         }
     }
 }

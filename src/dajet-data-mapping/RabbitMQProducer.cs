@@ -204,7 +204,7 @@ namespace DaJet.RabbitMQ
 
 
         
-        public int Publish(EntityJsonSerializer serializer, int pageSize, int pageNumber)
+        public int Publish(IDaJetJsonSerializer serializer, int pageSize, int pageNumber)
         {
             int messagesSent = 0;
 

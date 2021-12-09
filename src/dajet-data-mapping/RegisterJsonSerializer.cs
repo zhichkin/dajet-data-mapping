@@ -11,7 +11,7 @@ using System.Text.Unicode;
 
 namespace DaJet.Json
 {
-    public sealed class RegisterJsonSerializer
+    public sealed class RegisterJsonSerializer : IDaJetJsonSerializer
     {
         private const string CONST_TYPE = "#type";
         private const string CONST_VALUE = "#value";
@@ -19,21 +19,20 @@ namespace DaJet.Json
         private const string CONST_TYPE_DECIMAL = "jxs:decimal";
         private const string CONST_TYPE_BOOLEAN = "jxs:boolean";
         private const string CONST_TYPE_DATETIME = "jxs:dateTime";
-        private const string CONST_TYPE_ENUM_REF = "jcfg:EnumRef";
-        private const string CONST_TYPE_CATALOG_REF = "jcfg:CatalogRef";
-        private const string CONST_TYPE_DOCUMENT_REF = "jcfg:DocumentRef";
-        
         private const string CONST_TYPE_INFO_REGISTER_SET = "jcfg:InformationRegisterRecordSet";
         private const string CONST_TYPE_ACCUM_REGISTER_SET = "jcfg:AccumulationRegisterRecordSet";
 
         private readonly RecyclableMemoryStreamManager StreamManager = new RecyclableMemoryStreamManager();
 
-        private RegisterDataMapper DataMapper { get; set; }
+        public RegisterDataMapper DataMapper { get; private set; }
+        private List<MetadataProperty> Selection { get; set; } // Отбор набора записей
         private Dictionary<string, string> PropertyAliases { get; set; }
 
         public RegisterJsonSerializer(RegisterDataMapper mapper)
         {
             DataMapper = mapper;
+
+            Selection = DataMapper.GetSelectionProperties();
 
             if (DataMapper.Options.MetaObject is InformationRegister ||
                 DataMapper.Options.MetaObject is AccumulationRegister)
@@ -97,28 +96,65 @@ namespace DaJet.Json
 
             writer.WritePropertyName("Filter");
             writer.WriteStartArray(); // start of filter
-
-            writer.WriteStartObject(); // start of filter parameter
-            
-            writer.WritePropertyName("Name");
-            writer.WriteStartObject();
-            writer.WriteString(CONST_TYPE, CONST_TYPE_STRING);
-            writer.WriteString(CONST_VALUE, "Recorder");
-            writer.WriteEndObject();
-
-            writer.WritePropertyName("Value");
-            writer.WriteStartObject();
-            writer.WriteString(CONST_TYPE, "jcfg:DocumentRef.ОбычныйДокумент");
-            writer.WriteString(CONST_VALUE, "09738c52-e30c-11eb-9cac-1e086ba0b1a1");
-            writer.WriteEndObject();
-
-            writer.WriteEndObject(); // end of filter item parameter
-
+            WriteSelectionToJson(reader, writer);
             writer.WriteEndArray(); // end of filter
 
             writer.WritePropertyName("Record");
             writer.WriteStartArray(); // start of records
+            WriteRecordToJson(reader, writer);
+            writer.WriteEndArray(); // end of records
 
+            writer.WriteEndObject(); // end of record set
+
+            writer.WriteEndObject(); // end of data transfer object
+        }
+
+        private PropertyMapper FindMapperByProperty(MetadataProperty property)
+        {
+            for (int i = 0; i < DataMapper.PropertyMappers.Count; i++)
+            {
+                if (DataMapper.PropertyMappers[i].Property == property)
+                {
+                    return DataMapper.PropertyMappers[i];
+                }
+            }
+            return null;
+        }
+        private void WriteSelectionToJson(IDataReader reader, Utf8JsonWriter writer)
+        {
+            foreach (MetadataProperty property in Selection)
+            {
+                PropertyMapper mapper = FindMapperByProperty(property);
+
+                if (mapper != null)
+                {
+                    WriteSelectionParameterToJson(reader, writer, mapper);
+                }
+            }
+        }
+        private void WriteSelectionParameterToJson(IDataReader reader, Utf8JsonWriter writer, PropertyMapper mapper)
+        {
+            if (!PropertyAliases.TryGetValue(mapper.Property.Name, out string propertyName))
+            {
+                propertyName = mapper.Property.Name;
+            }
+
+            object value = mapper.GetValue(reader);
+
+            writer.WriteStartObject(); // start of filter parameter
+
+            writer.WritePropertyName("Name");
+            writer.WriteStartObject();
+            writer.WriteString(CONST_TYPE, CONST_TYPE_STRING);
+            writer.WriteString(CONST_VALUE, propertyName);
+            writer.WriteEndObject();
+
+            WriteMultipleValueToJson(writer, "Value", value);
+
+            writer.WriteEndObject(); // end of filter item parameter
+        }
+        private void WriteRecordToJson(IDataReader reader, Utf8JsonWriter writer)
+        {
             writer.WriteStartObject(); // start of record
 
             for (int i = 0; i < DataMapper.PropertyMappers.Count; i++) // record properties
@@ -133,18 +169,13 @@ namespace DaJet.Json
                     }
                 }
 
-                WirteValueToJson(writer, DataMapper.PropertyMappers[i], value);
+                WriteValueToJson(writer, DataMapper.PropertyMappers[i], value);
             }
 
             writer.WriteEndObject(); // end of record
-
-            writer.WriteEndArray(); // end of records
-
-            writer.WriteEndObject(); // end of record set
-
-            writer.WriteEndObject(); // end of data transfer object
         }
-        private void WirteValueToJson(Utf8JsonWriter writer, PropertyMapper mapper, object value)
+
+        private void WriteValueToJson(Utf8JsonWriter writer, PropertyMapper mapper, object value)
         {
             if (!PropertyAliases.TryGetValue(mapper.Property.Name, out string propertyName))
             {
@@ -205,7 +236,7 @@ namespace DaJet.Json
                     writer.WriteString(propertyName, entity.Identity.ToString());
                 }
             }
-            // TODO: unsupported value type
+            // unsupported value type - this should not happen
         }
         private void WriteMultipleValueToJson(Utf8JsonWriter writer, string propertyName, object value)
         {

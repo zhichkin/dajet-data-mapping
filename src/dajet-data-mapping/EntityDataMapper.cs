@@ -170,7 +170,7 @@ namespace DaJet.Data.Mapping
                     continue;
                 }
 
-                PropertyMapper mapper = new PropertyMapper(Options.InfoBase, property);
+                PropertyMapper mapper = new PropertyMapper(Options.InfoBase, Options.MetaObject, property);
                 mapper.Initialize(ref ordinal);
 
                 PropertyMappers.Add(mapper);
