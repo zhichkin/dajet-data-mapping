@@ -3,12 +3,13 @@ using Microsoft.Data.SqlClient;
 using System;
 using System.Collections.Generic;
 using System.Data;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 
 namespace DaJet.Data.Mapping
 {
-    public sealed class RegisterDataMapper
+    public sealed class RegisterDataMapper : IDaJetDataMapper
     {
         private static readonly List<string> SystemPropertyOrder = new List<string>()
         {
@@ -24,11 +25,15 @@ namespace DaJet.Data.Mapping
         public RegisterDataMapper() { }
         public DataMapperOptions Options { get; private set; }
         public List<PropertyMapper> PropertyMappers { get; private set; } = new List<PropertyMapper>();
-        public RegisterDataMapper Configure(DataMapperOptions options)
+        public void Configure(DataMapperOptions options)
         {
             Options = options;
             ConfigureDataMapper();
-            return this;
+        }
+        public void Reconfigure()
+        {
+            SELECT_COUNT_SCRIPT = string.Empty;
+            SELECT_PAGING_SCRIPT = string.Empty;
         }
         private void ConfigureDataMapper()
         {
@@ -123,6 +128,41 @@ namespace DaJet.Data.Mapping
 
             return rowCount;
         }
+        public long TestGetPageDataRows(int size, int page)
+        {
+            Stopwatch watcher = new Stopwatch();
+
+            watcher.Start();
+
+            using (SqlConnection connection = new SqlConnection(Options.ConnectionString))
+            {
+                connection.Open();
+
+                using (SqlCommand command = connection.CreateCommand())
+                {
+                    command.CommandType = CommandType.Text;
+                    command.CommandText = GetSelectPagingScript();
+                    command.CommandTimeout = Options.CommandTimeout; // seconds
+                    command.Parameters.AddWithValue("PageSize", size);
+                    command.Parameters.AddWithValue("PageNumber", page);
+
+                    ConfigureQueryParameters(command, Options.Filter);
+
+                    using (SqlDataReader reader = command.ExecuteReader())
+                    {
+                        while (reader.Read())
+                        {
+                            // do nothing ¯\_(ツ)_/¯
+                        }
+                        reader.Close();
+                    }
+                }
+            }
+
+            watcher.Stop();
+
+            return watcher.ElapsedMilliseconds;
+        }
         public IEnumerable<IDataReader> GetPageDataRows(int size, int page)
         {
             using (SqlConnection connection = new SqlConnection(Options.ConnectionString))
@@ -172,12 +212,7 @@ namespace DaJet.Data.Mapping
                 command.Parameters.AddWithValue($"p{p}", value);
             }
         }
-
-        public void ResetScripts()
-        {
-            SELECT_COUNT_SCRIPT = string.Empty;
-            SELECT_PAGING_SCRIPT = string.Empty;
-        }
+                
         public string GetSelectCountScript()
         {
             if (string.IsNullOrEmpty(SELECT_COUNT_SCRIPT))

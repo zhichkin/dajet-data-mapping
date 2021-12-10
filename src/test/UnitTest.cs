@@ -227,13 +227,13 @@ namespace test
 
             string metadataName = "Документ.ЗаказКлиента";
 
-            EntityDataMapper mapper = new EntityDataMapper()
-                .Configure(new DataMapperOptions()
-                {
-                    InfoBase = infoBase,
-                    MetadataName = metadataName,
-                    ConnectionString = MetadataService.ConnectionString
-                });
+            EntityDataMapper mapper = new EntityDataMapper();
+            mapper.Configure(new DataMapperOptions()
+            {
+                InfoBase = infoBase,
+                MetadataName = metadataName,
+                ConnectionString = MetadataService.ConnectionString
+            });
             EntityJsonSerializer serializer = new EntityJsonSerializer(mapper);
 
             string routingKey = "РИБ.MAIN.N001"; // "Справочник.Клиенты";
@@ -298,7 +298,7 @@ namespace test
 
             mapper.Options.Index = clustered_index;
             mapper.Options.Filter = null;
-            mapper.ResetScripts();
+            mapper.Reconfigure();
             TestEntityDataMapper(mapper, pageSize, pageNumber);
 
             List<FilterParameter> filter = new List<FilterParameter>()
@@ -312,7 +312,7 @@ namespace test
             };
             mapper.Options.Index = bydescrip_index;
             mapper.Options.Filter = filter;
-            mapper.ResetScripts();
+            mapper.Reconfigure();
             TestEntityDataMapper(mapper, pageSize, pageNumber);
 
             pageSize = 2;
@@ -338,7 +338,7 @@ namespace test
                 }
             };
             mapper.Options.Filter = filter;
-            mapper.ResetScripts();
+            mapper.Reconfigure();
             TestEntityDataMapper(mapper, pageSize, pageNumber);
 
             pageSize = 10;
@@ -379,7 +379,7 @@ namespace test
 
             mapper.Options.Index = clustered_index;
             mapper.Options.Filter = null;
-            mapper.ResetScripts();
+            mapper.Reconfigure();
             TestEntityDataMapper(mapper, pageSize, pageNumber);
 
             List<FilterParameter> filter = new List<FilterParameter>()
@@ -394,14 +394,14 @@ namespace test
 
             mapper.Options.Index = bydocdate_index;
             mapper.Options.Filter = filter;
-            mapper.ResetScripts();
+            mapper.Reconfigure();
             TestEntityDataMapper(mapper, pageSize, pageNumber);
         }
         private void TestEntityDataMapper(EntityDataMapper mapper, int pageSize, int pageNumber)
         {
             Console.WriteLine($"Total row count = {mapper.GetTotalRowCount()}");
             Console.WriteLine();
-            Console.WriteLine($"Test: {mapper.TestGetEntityDataRows(pageSize, pageNumber)} ms");
+            Console.WriteLine($"Test: {mapper.TestGetPageDataRows(pageSize, pageNumber)} ms");
             Console.WriteLine();
             Console.WriteLine(mapper.GetTotalRowCountScript());
             Console.WriteLine();

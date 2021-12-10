@@ -28,13 +28,13 @@ namespace test
         {
             ApplicationObject metaObject = InfoBase.GetApplicationObjectByName(metadataName);
 
-            RegisterDataMapper mapper = new RegisterDataMapper()
-                .Configure(new DataMapperOptions()
-                {
-                    InfoBase = InfoBase,
-                    MetaObject = metaObject,
-                    ConnectionString = MetadataService.ConnectionString
-                });
+            RegisterDataMapper mapper = new RegisterDataMapper();
+            mapper.Configure(new DataMapperOptions()
+            {
+                InfoBase = InfoBase,
+                MetaObject = metaObject,
+                ConnectionString = MetadataService.ConnectionString
+            });
 
             return mapper;
         }

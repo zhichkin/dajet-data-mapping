@@ -25,13 +25,13 @@ namespace test
 
             InfoBase infoBase = MetadataService.OpenInfoBase();
 
-            EntityDataMapper mapper = new EntityDataMapper()
-                .Configure(new DataMapperOptions()
-                {
-                    InfoBase = infoBase,
-                    MetadataName = metadataName,
-                    ConnectionString = MetadataService.ConnectionString
-                });
+            EntityDataMapper mapper = new EntityDataMapper();
+            mapper.Configure(new DataMapperOptions()
+            {
+                InfoBase = infoBase,
+                MetadataName = metadataName,
+                ConnectionString = MetadataService.ConnectionString
+            });
 
             EntityJsonSerializer serializer = new EntityJsonSerializer(mapper);
 
@@ -51,13 +51,13 @@ namespace test
 
             InfoBase infoBase = MetadataService.OpenInfoBase();
 
-            EntityDataMapper mapper = new EntityDataMapper()
-                .Configure(new DataMapperOptions()
-                {
-                    InfoBase = infoBase,
-                    MetadataName = metadataName,
-                    ConnectionString = MetadataService.ConnectionString
-                });
+            EntityDataMapper mapper = new EntityDataMapper();
+            mapper.Configure(new DataMapperOptions()
+            {
+                InfoBase = infoBase,
+                MetadataName = metadataName,
+                ConnectionString = MetadataService.ConnectionString
+            });
 
             EntityJsonSerializer serializer = new EntityJsonSerializer(mapper);
 
@@ -120,14 +120,13 @@ namespace test
                 return;
             }
 
-            EntityDataMapper mapper = new EntityDataMapper()
-                .Configure(new DataMapperOptions()
-                {
-                    InfoBase = infoBase,
-                    MetadataName = metadataName,
-                    ConnectionString = MetadataService.ConnectionString
-                });
-
+            EntityDataMapper mapper = new EntityDataMapper();
+            mapper.Configure(new DataMapperOptions()
+            {
+                InfoBase = infoBase,
+                MetadataName = metadataName,
+                ConnectionString = MetadataService.ConnectionString
+            });
             EntityJsonSerializer serializer = new EntityJsonSerializer(mapper);
 
             int pageSize = 15;

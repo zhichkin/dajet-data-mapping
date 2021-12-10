@@ -60,7 +60,7 @@ namespace DaJet.Json
 
         public IEnumerable<ReadOnlyMemory<byte>> Serialize(int pageSize, int pageNumber)
         {
-            foreach (IDataReader reader in DataMapper.GetEntityDataRows(pageSize, pageNumber))
+            foreach (IDataReader reader in DataMapper.GetPageDataRows(pageSize, pageNumber))
             {
                 yield return Serialize(reader);
             }

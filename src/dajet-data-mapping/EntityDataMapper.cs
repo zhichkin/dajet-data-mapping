@@ -9,7 +9,7 @@ using System.Text;
 
 namespace DaJet.Data.Mapping
 {
-    public sealed class EntityDataMapper
+    public sealed class EntityDataMapper : IDaJetDataMapper
     {
         private string SELECT_ENTITY_COUNT_SCRIPT = string.Empty;
         private string SELECT_ENTITY_PAGING_SCRIPT = string.Empty;
@@ -44,11 +44,16 @@ namespace DaJet.Data.Mapping
             { "Проведён",         4 }  // Posted             - bool
         };
 
-        public EntityDataMapper Configure(DataMapperOptions options)
+        public void Configure(DataMapperOptions options)
         {
             Options = options;
             ConfigureDataMapper();
-            return this;
+        }
+        public void Reconfigure()
+        {
+            SELECT_ENTITY_COUNT_SCRIPT = string.Empty;
+            SELECT_ENTITY_PAGING_SCRIPT = string.Empty;
+            // SELECT_ENTITY_TABLE_PART_SCRIPT is not changing !
         }
         private void ConfigureDataMapper()
         {
@@ -187,19 +192,19 @@ namespace DaJet.Data.Mapping
                     continue;
                 }
 
-                EntityDataMapper mapper = new EntityDataMapper()
-                    .Configure(new DataMapperOptions()
+                EntityDataMapper mapper = new EntityDataMapper();
+                mapper.Configure(new DataMapperOptions()
+                {
+                    InfoBase = Options.InfoBase,
+                    MetaObject = table,
+                    ConnectionString = Options.ConnectionString,
+                    IgnoreProperties = new List<string>()
                     {
-                        InfoBase = Options.InfoBase,
-                        MetaObject = table,
-                        ConnectionString = Options.ConnectionString,
-                        IgnoreProperties = new List<string>()
-                        {
-                            "Ссылка",
-                            "КлючСтроки",
-                            "НомерСтроки"
-                        }
-                    });
+                        "Ссылка",
+                        "КлючСтроки",
+                        "НомерСтроки"
+                    }
+                });
 
                 Options.TablePartMappers.Add(mapper);
             }
@@ -265,7 +270,7 @@ namespace DaJet.Data.Mapping
             }
             return null;
         }
-        public long TestGetEntityDataRows(int size, int page)
+        public long TestGetPageDataRows(int size, int page)
         {
             Stopwatch watcher = new Stopwatch();
 
@@ -300,7 +305,7 @@ namespace DaJet.Data.Mapping
 
             return watcher.ElapsedMilliseconds;
         }
-        public IEnumerable<IDataReader> GetEntityDataRows(int size, int page)
+        public IEnumerable<IDataReader> GetPageDataRows(int size, int page)
         {
             using (SqlConnection connection = new SqlConnection(Options.ConnectionString))
             {
@@ -373,14 +378,8 @@ namespace DaJet.Data.Mapping
                 command.Parameters.AddWithValue($"p{p}", value);
             }
         }
-
-
-        public void ResetScripts()
-        {
-            SELECT_ENTITY_COUNT_SCRIPT = string.Empty;
-            SELECT_ENTITY_PAGING_SCRIPT = string.Empty;
-            // SELECT_ENTITY_TABLE_PART_SCRIPT is not changing !
-        }
+        
+        
 
         public string GetTotalRowCountScript()
         {
