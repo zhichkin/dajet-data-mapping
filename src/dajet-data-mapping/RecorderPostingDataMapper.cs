@@ -9,7 +9,7 @@ using System.Text;
 
 namespace DaJet.Data.Mapping
 {
-    public sealed class RegisterDataMapper : IDaJetDataMapper
+    public sealed class RecorderPostingDataMapper : IDaJetDataMapper
     {
         private static readonly List<string> SystemPropertyOrder = new List<string>()
         {
@@ -22,7 +22,7 @@ namespace DaJet.Data.Mapping
         private string SELECT_COUNT_SCRIPT = string.Empty;
         private string SELECT_PAGING_SCRIPT = string.Empty;
 
-        public RegisterDataMapper() { }
+        public RecorderPostingDataMapper() { }
         public DataMapperOptions Options { get; private set; }
         public List<PropertyMapper> PropertyMappers { get; private set; } = new List<PropertyMapper>();
         public void Configure(DataMapperOptions options)
@@ -37,7 +37,7 @@ namespace DaJet.Data.Mapping
                 throw new ArgumentNullException($"Metadata object \"{options.MetadataName}\" is not found!");
             }
 
-            if ((options.MetaObject is InformationRegister register && register.UseRecorder) || options.MetaObject is AccumulationRegister)
+            if (!((options.MetaObject is InformationRegister register && register.UseRecorder) || options.MetaObject is AccumulationRegister))
             {
                 throw new ArgumentOutOfRangeException(nameof(options));
             }
@@ -184,8 +184,6 @@ namespace DaJet.Data.Mapping
                     command.CommandType = CommandType.Text;
                     command.CommandText = GetSelectPagingScript();
                     command.CommandTimeout = Options.CommandTimeout; // seconds
-                    command.Parameters.AddWithValue("PageSize", size);
-                    command.Parameters.AddWithValue("PageNumber", page);
 
                     ConfigureQueryParameters(command, Options.Filter);
 
@@ -285,23 +283,13 @@ namespace DaJet.Data.Mapping
 
         public string BuildSelectPagingScript()
         {
-            IndexInfo index = GetPagingIndex();
-
             StringBuilder script = new StringBuilder();
 
-            script.Append("WITH cte AS ");
-            script.Append($"(SELECT {BuildSelectClause(index)} ");
-            script.Append($"FROM {Options.MetaObject.TableName} ");
+            script.Append(BuildSelectStatementScript(null));
             if (Options.Filter != null && Options.Filter.Count > 0)
             {
-                script.Append($"WHERE {BuildWhereClause(Options.Filter)} ");
+                script.Append($" WHERE {BuildWhereClause(Options.Filter)}");
             }
-            script.Append($"ORDER BY {BuildOrderByClause(index)} ");
-            script.Append("OFFSET @PageSize * (@PageNumber - 1) ROWS ");
-            script.Append("FETCH NEXT @PageSize ROWS ONLY) ");
-            script.Append(BuildSelectStatementScript("t"));
-            script.Append(" INNER JOIN cte ON ");
-            script.Append(BuildJoinOnClause(index));
             script.Append(";");
 
             return script.ToString();
@@ -360,7 +348,7 @@ namespace DaJet.Data.Mapping
                     }
                 }
             }
-            return string.Empty;
+            return path;
         }
         private string GetComparisonOperatorSymbol(ComparisonOperator comparisonOperator)
         {
@@ -501,7 +489,7 @@ namespace DaJet.Data.Mapping
         {
             return Options.MetaObject.Properties.Where(p => p.Name == "Период").FirstOrDefault();
         }
-        private MetadataProperty GetRecorderProperty()
+        public MetadataProperty GetRecorderProperty()
         {
             return Options.MetaObject.Properties.Where(p => p.Name == "Регистратор").FirstOrDefault();
         }

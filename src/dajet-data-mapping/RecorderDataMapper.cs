@@ -9,7 +9,7 @@ using System.Text;
 
 namespace DaJet.Data.Mapping
 {
-    public sealed class RegisterDataMapper : IDaJetDataMapper
+    public sealed class RecorderDataMapper : IDaJetDataMapper
     {
         private static readonly List<string> SystemPropertyOrder = new List<string>()
         {
@@ -21,8 +21,9 @@ namespace DaJet.Data.Mapping
 
         private string SELECT_COUNT_SCRIPT = string.Empty;
         private string SELECT_PAGING_SCRIPT = string.Empty;
+        private string SELECT_RECORDS_SCRIPT = string.Empty;
 
-        public RegisterDataMapper() { }
+        public RecorderDataMapper() { }
         public DataMapperOptions Options { get; private set; }
         public List<PropertyMapper> PropertyMappers { get; private set; } = new List<PropertyMapper>();
         public void Configure(DataMapperOptions options)
@@ -37,7 +38,7 @@ namespace DaJet.Data.Mapping
                 throw new ArgumentNullException($"Metadata object \"{options.MetadataName}\" is not found!");
             }
 
-            if ((options.MetaObject is InformationRegister register && register.UseRecorder) || options.MetaObject is AccumulationRegister)
+            if (!((options.MetaObject is InformationRegister register && register.UseRecorder) || options.MetaObject is AccumulationRegister))
             {
                 throw new ArgumentOutOfRangeException(nameof(options));
             }
@@ -49,13 +50,19 @@ namespace DaJet.Data.Mapping
         {
             SELECT_COUNT_SCRIPT = string.Empty;
             SELECT_PAGING_SCRIPT = string.Empty;
+            SELECT_RECORDS_SCRIPT = string.Empty;
         }
         private void ConfigureDataMapper()
         {
-            Options.IgnoreProperties = new List<string>()
+            Options.IgnoreProperties = new List<string>();
+
+            foreach (MetadataProperty property in Options.MetaObject.Properties)
             {
-                "НомерСтроки"
-            };
+                if (property.Name != "Регистратор")
+                {
+                    Options.IgnoreProperties.Add(property.Name);
+                }
+            }
 
             OrderSystemProperties();
             ConfigurePropertyDataMappers();
@@ -286,6 +293,7 @@ namespace DaJet.Data.Mapping
         public string BuildSelectPagingScript()
         {
             IndexInfo index = GetPagingIndex();
+            MetadataProperty recorder = GetRecorderProperty();
 
             StringBuilder script = new StringBuilder();
 
@@ -299,10 +307,23 @@ namespace DaJet.Data.Mapping
             script.Append($"ORDER BY {BuildOrderByClause(index)} ");
             script.Append("OFFSET @PageSize * (@PageNumber - 1) ROWS ");
             script.Append("FETCH NEXT @PageSize ROWS ONLY) ");
-            script.Append(BuildSelectStatementScript("t"));
-            script.Append(" INNER JOIN cte ON ");
-            script.Append(BuildJoinOnClause(index));
-            script.Append(";");
+            script.Append("SELECT DISTINCT ");
+            if (recorder.Fields.Count == 1)
+            {
+                script.Append($"cte.{recorder.Fields[0].Name} AS [Recorder] "); // _RecorderRRef
+            }
+            else if (recorder.Fields.Count == 2)
+            {
+                if (recorder.Fields[0].Purpose == FieldPurpose.TypeCode) // _RecorderTRef
+                {
+                    script.Append($"cte.{recorder.Fields[1].Name} AS [Recorder],  CAST(cte.{recorder.Fields[0].Name} AS int) AS [TypeCode] ");
+                }
+                else
+                {
+                    script.Append($"cte.{recorder.Fields[0].Name} AS [Recorder],  CAST(cte.{recorder.Fields[1].Name} AS int) AS [TypeCode] ");
+                }
+            }
+            script.Append("FROM cte;");
 
             return script.ToString();
         }
@@ -404,6 +425,20 @@ namespace DaJet.Data.Mapping
             }
 
             return clause.ToString();
+        }
+
+
+
+        public EntityRef GetRecorderRef(IDataReader reader)
+        {
+            for (int i = 0; i < PropertyMappers.Count; i++)
+            {
+                if (PropertyMappers[i].Property.Name == "Регистратор")
+                {
+                    return (EntityRef)PropertyMappers[i].GetValue(reader);
+                }
+            }
+            return null;
         }
 
 

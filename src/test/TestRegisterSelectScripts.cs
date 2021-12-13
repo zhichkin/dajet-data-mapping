@@ -25,7 +25,21 @@ namespace test
             
             InfoBase = MetadataService.OpenInfoBase();
         }
-        private RegisterDataMapper GetDataMapper(string metadataName)
+        private RecorderDataMapper GetRecorderDataMapper(string metadataName)
+        {
+            ApplicationObject metaObject = InfoBase.GetApplicationObjectByName(metadataName);
+
+            RecorderDataMapper mapper = new RecorderDataMapper();
+            mapper.Configure(new DataMapperOptions()
+            {
+                InfoBase = InfoBase,
+                MetaObject = metaObject,
+                ConnectionString = MetadataService.ConnectionString
+            });
+
+            return mapper;
+        }
+        private RegisterDataMapper GetRegisterDataMapper(string metadataName)
         {
             ApplicationObject metaObject = InfoBase.GetApplicationObjectByName(metadataName);
 
@@ -39,23 +53,23 @@ namespace test
 
             return mapper;
         }
-
+        
         [TestMethod] public void Script_Select_ПериодическийРегистрСведений()
         {
-            RegisterDataMapper mapper = GetDataMapper(ПериодическийРегистрСведений);
+            RegisterDataMapper mapper = GetRegisterDataMapper(ПериодическийРегистрСведений);
 
             Console.WriteLine(mapper.BuildSelectStatementScript("t"));
         }
         [TestMethod] public void Script_CountNoFilter_ПериодическийРегистрСведений()
         {
-            RegisterDataMapper mapper = GetDataMapper(ПериодическийРегистрСведений);
+            RegisterDataMapper mapper = GetRegisterDataMapper(ПериодическийРегистрСведений);
 
             Console.WriteLine($"Total count = {mapper.GetTotalRowCount()}");
             Console.WriteLine(mapper.BuildSelectCountScript());
         }
         [TestMethod] public void Script_CountWithFilter_ПериодическийРегистрСведений()
         {
-            RegisterDataMapper mapper = GetDataMapper(ПериодическийРегистрСведений);
+            RegisterDataMapper mapper = GetRegisterDataMapper(ПериодическийРегистрСведений);
 
             List<FilterParameter> filter = new List<FilterParameter>()
             {
@@ -74,7 +88,7 @@ namespace test
         }
         [TestMethod] public void Script_CountWithBetweenFilter_ПериодическийРегистрСведений()
         {
-            RegisterDataMapper mapper = GetDataMapper(ПериодическийРегистрСведений);
+            RegisterDataMapper mapper = GetRegisterDataMapper(ПериодическийРегистрСведений);
 
             List<FilterParameter> filter = new List<FilterParameter>()
             {
@@ -97,15 +111,9 @@ namespace test
             Console.WriteLine($"Total count = {mapper.GetTotalRowCount()}");
             Console.WriteLine(mapper.BuildSelectCountScript());
         }
-        [TestMethod] public void Script_PagingNoFilter_ПериодическийРегистрСведений()
-        {
-            RegisterDataMapper mapper = GetDataMapper(ПериодическийРегистрСведений);
-
-            Console.WriteLine(mapper.BuildSelectPagingScript());
-        }
         [TestMethod] public void Script_PagingWithFilter_ПериодическийРегистрСведений()
         {
-            RegisterDataMapper mapper = GetDataMapper(ПериодическийРегистрСведений);
+            RegisterDataMapper mapper = GetRegisterDataMapper(ПериодическийРегистрСведений);
 
             List<FilterParameter> filter = new List<FilterParameter>()
             {
@@ -123,7 +131,7 @@ namespace test
         }
         [TestMethod] public void Script_PagingWithBetweenFilter_ПериодическийРегистрСведений()
         {
-            RegisterDataMapper mapper = GetDataMapper(ПериодическийРегистрСведений);
+            RegisterDataMapper mapper = GetRegisterDataMapper(ПериодическийРегистрСведений);
 
             List<FilterParameter> filter = new List<FilterParameter>()
             {
@@ -146,38 +154,58 @@ namespace test
             Console.WriteLine(mapper.BuildSelectPagingScript());
         }
 
-        [TestMethod] public void Script_PagingNoFilter_РегистрСведений_РегистраторНепериодический()
+        [TestMethod] public void PagingNoFilter_Registers()
         {
-            RegisterDataMapper mapper = GetDataMapper("РегистрСведений.РегистрСведенийОдинРегистратор");
+            string[] names = new string[]
+            {
+                "РегистрСведений.ОбычныйРегистрСведений",
+                "РегистрСведений.ПериодическийРегистрСведений"
+            };
 
-            Console.WriteLine(mapper.BuildSelectPagingScript());
+            foreach(string metadataName in names)
+            {
+                Console.WriteLine();
+                Console.WriteLine($"{metadataName}");
+
+                RegisterDataMapper mapper = GetRegisterDataMapper(metadataName);
+
+                Console.WriteLine($"COUNT = {mapper.GetTotalRowCount()}");
+
+                RegisterJsonSerializer serializer = new RegisterJsonSerializer(mapper);
+
+                foreach (ReadOnlyMemory<byte> message in serializer.Serialize(100, 1))
+                {
+                    Console.WriteLine(Encoding.UTF8.GetString(message.Span));
+                }
+            }
         }
-        [TestMethod] public void Script_PagingNoFilter_РегистрСведений_РегистраторПериодический()
+        [TestMethod] public void PagingNoFilter_Recorders()
         {
-            RegisterDataMapper mapper = GetDataMapper("РегистрСведений.РегистраторПериодСекунда");
+            string[] names = new string[]
+            {
+                "РегистрСведений.РегистрСведенийОдинРегистратор",
+                "РегистрСведений.РегистраторПериодСекунда",
+                "РегистрСведений.ПериодическийМногоРегистраторов",
+                "РегистрНакопления.РегистрНакопленияОбороты",
+                "РегистрНакопления.РегистрНакопленияОстатки"
+            };
 
-            IndexInfo index = mapper.GetPagingIndex();
-            List<MetadataProperty> selection = mapper.GetSelectionProperties();
+            foreach (string metadataName in names)
+            {
+                Console.WriteLine();
+                Console.WriteLine($"{metadataName}");
 
-            Console.WriteLine(mapper.BuildSelectPagingScript());
-        }
-        [TestMethod] public void Script_PagingNoFilter_РегистрСведений_РегистраторПериодРегистратора()
-        {
-            RegisterDataMapper mapper = GetDataMapper("РегистрСведений.ПериодическийМногоРегистраторов");
+                RecorderDataMapper mapper = GetRecorderDataMapper(metadataName);
 
-            Console.WriteLine(mapper.BuildSelectPagingScript());
-        }
-        [TestMethod] public void Script_PagingNoFilter_РегистрНакопления_Обороты()
-        {
-            RegisterDataMapper mapper = GetDataMapper("РегистрНакопления.РегистрНакопленияОбороты");
+                Console.WriteLine($"COUNT = {mapper.GetTotalRowCount()}");
 
-            Console.WriteLine(mapper.BuildSelectPagingScript());
-        }
-        [TestMethod] public void Script_PagingNoFilter_РегистрНакопления_Остатки()
-        {
-            RegisterDataMapper mapper = GetDataMapper("РегистрНакопления.РегистрНакопленияОстатки");
+                RecorderJsonSerializer serializer = new RecorderJsonSerializer(mapper);
 
-            Console.WriteLine(mapper.BuildSelectPagingScript());
+                foreach (ReadOnlyMemory<byte> message in serializer.Serialize(100, 1))
+                {
+                    Console.WriteLine(Encoding.UTF8.GetString(message.Span));
+                }
+            }
         }
     }
 }

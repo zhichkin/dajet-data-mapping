@@ -16,10 +16,10 @@ Microsoft SQL Server supported only.</Description>
 4. Information register (recorder, periodic by recorder date and time).
 5. Balance register.
 6. Turnovers register.
-Bug fixes</PackageReleaseNotes>
+7. Bug fixes</PackageReleaseNotes>
     <PackageProjectUrl>https://github.com/zhichkin/dajet-data-mapping</PackageProjectUrl>
     <RepositoryUrl>https://github.com/zhichkin/dajet-data-mapping</RepositoryUrl>
-    <Version>3.1.2</Version>
+    <Version>3.2.0</Version>
   </PropertyGroup>
 
   <ItemGroup>
