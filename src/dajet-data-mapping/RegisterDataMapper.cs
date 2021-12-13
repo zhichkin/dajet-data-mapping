@@ -400,25 +400,48 @@ namespace DaJet.Data.Mapping
 
         public IndexInfo GetPagingIndex()
         {
-            List<IndexInfo> indexes = SQLHelper.GetIndexes(Options.ConnectionString, Options.MetaObject.TableName);
-
-            IndexInfo clustered = indexes.Where(i => i.IsClustered).FirstOrDefault();
-
             if (Options.MetaObject is InformationRegister register)
             {
                 if (register.UseRecorder) // Подчинение регистратору
                 {
-                    return clustered; // Непериодический или Периодический или Периодический по позиции регистратора
+                    if (register.Periodicity == RegisterPeriodicity.None)
+                    {
+                        return GetPagingIndexForRecorderNonPeriodicRegister(); // Непериодический
+                    }
+                    else if (register.Periodicity == RegisterPeriodicity.Year
+                        || register.Periodicity == RegisterPeriodicity.Quarter
+                        || register.Periodicity == RegisterPeriodicity.Month
+                        || register.Periodicity == RegisterPeriodicity.Day
+                        || register.Periodicity == RegisterPeriodicity.Second)
+                    {
+                        return GetPagingIndexForRecorderNonPeriodicRegister(); // Периодический
+                    }
+                    else // RegisterPeriodicity.Recorder
+                    {
+                        return GetPagingIndexForRecorderRegister(); // Периодический по позиции регистратора
+                    }
                 }
                 else if (register.Periodicity == RegisterPeriodicity.None)
                 {
-                    return clustered; // Независимый и Непериодический
+                    return GetPagingIndexForIndependentRegister(); // Независимый и Непериодический
                 }
                 else
                 {
                     return GetPagingIndexForPeriodicRegister(); // Независимый и Периодический
                 }
             }
+            else if (Options.MetaObject is AccumulationRegister)
+            {
+                GetPagingIndexForRecorderRegister();
+            }
+
+            return GetClusteredIndex();
+        }
+        private IndexInfo GetClusteredIndex()
+        {
+            List<IndexInfo> indexes = SQLHelper.GetIndexes(Options.ConnectionString, Options.MetaObject.TableName);
+
+            IndexInfo clustered = indexes.Where(i => i.IsClustered).FirstOrDefault();
 
             return clustered;
         }
@@ -430,10 +453,51 @@ namespace DaJet.Data.Mapping
 
             return GetUniqueIndexByTemplate(indexes, template);
         }
+        private IndexInfo GetPagingIndexForIndependentRegister()
+        {
+            List<IndexInfo> indexes = SQLHelper.GetIndexes(Options.ConnectionString, Options.MetaObject.TableName);
+
+            List<MetadataProperty> template = GetSelectionProperties();
+
+            return GetUniqueIndexByTemplate(indexes, template);
+        }
+        private IndexInfo GetPagingIndexForRecorderRegister()
+        {
+            List<IndexInfo> indexes = SQLHelper.GetIndexes(Options.ConnectionString, Options.MetaObject.TableName);
+
+            List<MetadataProperty> template = new List<MetadataProperty>()
+            {
+                GetPeriodProperty(),
+                GetRecorderProperty(),
+                GetRowNumberProperty()
+            };
+
+            return GetUniqueIndexByTemplate(indexes, template);
+        }
+        private IndexInfo GetPagingIndexForRecorderNonPeriodicRegister()
+        {
+            List<IndexInfo> indexes = SQLHelper.GetIndexes(Options.ConnectionString, Options.MetaObject.TableName);
+
+            List<MetadataProperty> template = new List<MetadataProperty>()
+            {
+                GetRecorderProperty(),
+                GetRowNumberProperty()
+            };
+
+            return GetUniqueIndexByTemplate(indexes, template);
+        }
 
         private MetadataProperty GetPeriodProperty()
         {
             return Options.MetaObject.Properties.Where(p => p.Name == "Период").FirstOrDefault();
+        }
+        private MetadataProperty GetRecorderProperty()
+        {
+            return Options.MetaObject.Properties.Where(p => p.Name == "Регистратор").FirstOrDefault();
+        }
+        private MetadataProperty GetRowNumberProperty()
+        {
+            return Options.MetaObject.Properties.Where(p => p.Name == "НомерСтроки").FirstOrDefault();
         }
         private List<MetadataProperty> GetDimensions()
         {
@@ -516,20 +580,29 @@ namespace DaJet.Data.Mapping
             {
                 if (register.UseRecorder) // Подчинение регистратору
                 {
-                    // TODO
-                    return null; // Непериодический или Периодический или Периодический по позиции регистратора
+                    return GetRecorderRegisterSelectionProperties(); // Непериодический | Периодический | Периодический по позиции регистратора
                 }
                 else if (register.Periodicity == RegisterPeriodicity.None)
                 {
-                    // TODO
-                    return null; // Независимый и Непериодический
+                    return GetDimensions(); // Независимый и Непериодический
                 }
                 else
                 {
                     return GetPeriodicRegisterSelectionProperties(); // Независимый и Периодический
                 }
             }
-            return null; // TODO ?
+            else if (Options.MetaObject is AccumulationRegister)
+            {
+                GetRecorderRegisterSelectionProperties();
+            }
+            return null;
+        }
+        private List<MetadataProperty> GetRecorderRegisterSelectionProperties()
+        {
+            return new List<MetadataProperty>()
+            {
+                GetRecorderProperty()
+            };
         }
         private List<MetadataProperty> GetPeriodicRegisterSelectionProperties()
         {

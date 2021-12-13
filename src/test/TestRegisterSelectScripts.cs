@@ -144,5 +144,36 @@ namespace test
 
             Console.WriteLine(mapper.BuildSelectPagingScript());
         }
+
+        [TestMethod] public void Script_PagingNoFilter_РегистрСведений_РегистраторНепериодический()
+        {
+            RegisterDataMapper mapper = GetDataMapper("РегистрСведений.РегистрСведенийОдинРегистратор");
+
+            Console.WriteLine(mapper.BuildSelectPagingScript());
+        }
+        [TestMethod] public void Script_PagingNoFilter_РегистрСведений_РегистраторПериодический()
+        {
+            RegisterDataMapper mapper = GetDataMapper("РегистрСведений.РегистраторПериодСекунда");
+
+            Console.WriteLine(mapper.BuildSelectPagingScript());
+        }
+        [TestMethod] public void Script_PagingNoFilter_РегистрСведений_РегистраторПериодРегистратора()
+        {
+            RegisterDataMapper mapper = GetDataMapper("РегистрСведений.ПериодическийМногоРегистраторов");
+
+            Console.WriteLine(mapper.BuildSelectPagingScript());
+        }
+        [TestMethod] public void Script_PagingNoFilter_РегистрНакопления_Обороты()
+        {
+            RegisterDataMapper mapper = GetDataMapper("РегистрНакопления.РегистрНакопленияОбороты");
+
+            Console.WriteLine(mapper.BuildSelectPagingScript());
+        }
+        [TestMethod] public void Script_PagingNoFilter_РегистрНакопления_Остатки()
+        {
+            RegisterDataMapper mapper = GetDataMapper("РегистрНакопления.РегистрНакопленияОстатки");
+
+            Console.WriteLine(mapper.BuildSelectPagingScript());
+        }
     }
 }
