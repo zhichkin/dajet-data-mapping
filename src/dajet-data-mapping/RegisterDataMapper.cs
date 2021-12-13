@@ -593,7 +593,7 @@ namespace DaJet.Data.Mapping
             }
             else if (Options.MetaObject is AccumulationRegister)
             {
-                GetRecorderRegisterSelectionProperties();
+                return GetRecorderRegisterSelectionProperties();
             }
             return null;
         }
