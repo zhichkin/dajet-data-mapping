@@ -1,4 +1,5 @@
-﻿using DaJet.Data.Mapping;
+﻿using DaJet.Data;
+using DaJet.Data.Mapping;
 using DaJet.Json;
 using DaJet.Metadata;
 using DaJet.Metadata.Model;
@@ -154,6 +155,9 @@ namespace test
         [TestMethod] public void Script_PagingNoFilter_РегистрСведений_РегистраторПериодический()
         {
             RegisterDataMapper mapper = GetDataMapper("РегистрСведений.РегистраторПериодСекунда");
+
+            IndexInfo index = mapper.GetPagingIndex();
+            List<MetadataProperty> selection = mapper.GetSelectionProperties();
 
             Console.WriteLine(mapper.BuildSelectPagingScript());
         }

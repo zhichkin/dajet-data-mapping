@@ -9,10 +9,17 @@
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <Description>Library to work with 1C:Enterprise 8 application data directly using C#.
 Microsoft SQL Server supported only.</Description>
-    <PackageReleaseNotes>Bug fix for accumulation registers</PackageReleaseNotes>
+    <PackageReleaseNotes>Added mapping and serialization:
+1. Information register (independent, non-periodic).
+2. Information register (recorder, non-periodic).
+3. Information register (recorder, periodic).
+4. Information register (recorder, periodic by recorder date and time).
+5. Balance register.
+6. Turnovers register.
+Bug fixes</PackageReleaseNotes>
     <PackageProjectUrl>https://github.com/zhichkin/dajet-data-mapping</PackageProjectUrl>
     <RepositoryUrl>https://github.com/zhichkin/dajet-data-mapping</RepositoryUrl>
-    <Version>3.1.1</Version>
+    <Version>3.1.2</Version>
   </PropertyGroup>
 
   <ItemGroup>

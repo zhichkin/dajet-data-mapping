@@ -165,7 +165,7 @@ namespace DaJet.Json
                 {
                     if (register.RegisterKind == RegisterKind.Balance && DataMapper.PropertyMappers[i].Property.Name == "ВидДвижения")
                     {
-                        value = (int)value == 0 ? "Receipt" : "Expense";
+                        value = (decimal)value == 0 ? "Receipt" : "Expense";
                     }
                 }
 
