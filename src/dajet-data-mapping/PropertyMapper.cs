@@ -237,11 +237,19 @@ namespace DaJet.Data.Mapping
         }
         private object GetObjectValue(IDataReader reader)
         {
-            int typeCode = reader.GetInt32(TypeCodeOrdinal);
+            // we are here from GetMultipleValue
             
             Guid uuid = new Guid(SQLHelper.Get1CUuid((byte[])reader.GetValue(ObjectOrdinal)));
 
-            return GetEntityRef(typeCode, uuid);
+            if (TypeCodeOrdinal > -1) // multiple reference value - TRef + RRef
+            {
+                int typeCode = reader.GetInt32(TypeCodeOrdinal);
+                return GetEntityRef(typeCode, uuid);
+            }
+            else // single reference value - RRef only
+            {
+                return GetEntityRef(Property, uuid);
+            }
         }
         private EntityRef GetEntityRef(int typeCode, Guid uuid)
         {
@@ -273,23 +281,21 @@ namespace DaJet.Data.Mapping
         }
         private EntityRef GetEntityRef(MetadataProperty property, Guid uuid)
         {
-            if (property.PropertyType.IsMultipleType
-                || !property.PropertyType.CanBeReference
-                || Property.PropertyType.ReferenceTypeUuid == Guid.Empty)
+            if (!property.PropertyType.CanBeReference || property.PropertyType.ReferenceTypeUuid == Guid.Empty)
             {
                 return null;
             }
 
-            if (Property.PropertyType.ReferenceTypeCode != 0)
+            if (property.PropertyType.ReferenceTypeCode != 0)
             {
-                return GetEntityRef(Property.PropertyType.ReferenceTypeCode, uuid);
+                return GetEntityRef(property.PropertyType.ReferenceTypeCode, uuid);
             }
 
             // TODO: ReferenceTypeCode == 0 this should be fixed in DaJet.Metadata library
 
-            if (InfoBase.ReferenceTypeUuids.TryGetValue(Property.PropertyType.ReferenceTypeUuid, out ApplicationObject propertyType))
+            if (InfoBase.ReferenceTypeUuids.TryGetValue(property.PropertyType.ReferenceTypeUuid, out ApplicationObject propertyType))
             {
-                Property.PropertyType.ReferenceTypeCode = propertyType.TypeCode; // patch metadata
+                property.PropertyType.ReferenceTypeCode = propertyType.TypeCode; // patch metadata
 
                 if (propertyType is Enumeration enumeration)
                 {
@@ -319,20 +325,20 @@ namespace DaJet.Data.Mapping
                 {
                     // TODO: this issue should be fixed in DaJet.Metadata library
                     // NOTE: file names lookup - Property.PropertyType.ReferenceTypeUuid for Owner property is a FileName, not metadata object Uuid !!!
-                    if (InfoBase.Catalogs.TryGetValue(Property.PropertyType.ReferenceTypeUuid, out ApplicationObject catalog))
+                    if (InfoBase.Catalogs.TryGetValue(property.PropertyType.ReferenceTypeUuid, out ApplicationObject catalog))
                     {
-                        Property.PropertyType.ReferenceTypeCode = catalog.TypeCode; // patch metadata
-                        return GetEntityRef(Property.PropertyType.ReferenceTypeCode, uuid);
+                        property.PropertyType.ReferenceTypeCode = catalog.TypeCode; // patch metadata
+                        return GetEntityRef(property.PropertyType.ReferenceTypeCode, uuid);
                     }
-                    else if (InfoBase.Characteristics.TryGetValue(Property.PropertyType.ReferenceTypeUuid, out ApplicationObject characteristic))
+                    else if (InfoBase.Characteristics.TryGetValue(property.PropertyType.ReferenceTypeUuid, out ApplicationObject characteristic))
                     {
-                        Property.PropertyType.ReferenceTypeCode = characteristic.TypeCode; // patch metadata
-                        return GetEntityRef(Property.PropertyType.ReferenceTypeCode, uuid);
+                        property.PropertyType.ReferenceTypeCode = characteristic.TypeCode; // patch metadata
+                        return GetEntityRef(property.PropertyType.ReferenceTypeCode, uuid);
                     }
                 }
             }
 
-            return new EntityRef(Property.PropertyType.ReferenceTypeCode, uuid);
+            return new EntityRef(property.PropertyType.ReferenceTypeCode, uuid);
         }
     }
 }

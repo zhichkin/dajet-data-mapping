@@ -15,13 +15,13 @@ namespace test
         private readonly InfoBase InfoBase;
         private readonly IMetadataService MetadataService;
 
-        private const string ПериодическийРегистрСведений = "РегистрСведений.ПериодическийРегистрСведений";
+        private const string ПериодическийРегистрСведений = "РегистрСведений.ИсторияСтатусовЗаказовКлиентов";
 
         public TestRegisterSelectScripts()
         {
             MetadataService = new MetadataService()
                 .UseDatabaseProvider(DatabaseProvider.SQLServer)
-                .UseConnectionString("Data Source=zhichkin;Initial Catalog=dajet-metadata;Integrated Security=True");
+                .UseConnectionString("Data Source=zhichkin;Initial Catalog=cerberus;Integrated Security=True");
             
             InfoBase = MetadataService.OpenInfoBase();
         }
@@ -158,8 +158,9 @@ namespace test
         {
             string[] names = new string[]
             {
-                "РегистрСведений.ОбычныйРегистрСведений",
-                "РегистрСведений.ПериодическийРегистрСведений"
+                //"РегистрСведений.ОбычныйРегистрСведений",
+                //"РегистрСведений.ПериодическийРегистрСведений"
+                "РегистрСведений.ИсторияСтатусовЗаказовКлиентов"
             };
 
             foreach(string metadataName in names)
