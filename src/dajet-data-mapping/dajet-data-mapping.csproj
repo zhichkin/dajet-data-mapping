@@ -9,13 +9,11 @@
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <Description>Library to work with 1C:Enterprise 8 application data directly using C#.
 Microsoft SQL Server supported only.</Description>
-    <PackageReleaseNotes>Critical bug fix:
-when multiple type property has primitive and single reference type values allowed,
-TypeCodeOrdinal has -1 value and should not be used for getting values from IDataReader.
-See PropertyMapper class, GetObjectValue method.</PackageReleaseNotes>
+    <PackageReleaseNotes>Added support for pre-defined catalog items in 8.2 platform version.
+The database field name in version 8.3 is changed from "IsMetadata" to "PredefinedID".</PackageReleaseNotes>
     <PackageProjectUrl>https://github.com/zhichkin/dajet-data-mapping</PackageProjectUrl>
     <RepositoryUrl>https://github.com/zhichkin/dajet-data-mapping</RepositoryUrl>
-    <Version>3.2.1</Version>
+    <Version>3.2.2</Version>
   </PropertyGroup>
 
   <ItemGroup>
