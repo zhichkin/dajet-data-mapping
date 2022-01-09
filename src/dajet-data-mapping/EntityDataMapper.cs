@@ -68,6 +68,10 @@ namespace DaJet.Data.Mapping
                 {
                     "ВерсияДанных"
                 };
+                if (Options.InfoBase.PlatformRequiredVersion < 80300)
+                {
+                    Options.IgnoreProperties.Add("Предопределённый");
+                }
             }
             else if (Options.MetaObject is Document)
             {
