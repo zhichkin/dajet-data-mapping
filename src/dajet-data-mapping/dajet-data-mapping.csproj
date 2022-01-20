@@ -9,15 +9,15 @@
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <Description>Library to work with 1C:Enterprise 8 application data directly using C#.
 Microsoft SQL Server supported only.</Description>
-    <PackageReleaseNotes>Added support for pre-defined catalog items in 8.2 platform version.
-The database field name in version 8.3 is changed from "IsMetadata" to "PredefinedID".</PackageReleaseNotes>
+    <PackageReleaseNotes>1. Updated DaJet.Metadata to 3.1.9 version.
+2. Fixed critical error in getting multiple value for properties of group elements of catalogs, which are used only for elements, but not groups (database NULL value reading exception).</PackageReleaseNotes>
     <PackageProjectUrl>https://github.com/zhichkin/dajet-data-mapping</PackageProjectUrl>
     <RepositoryUrl>https://github.com/zhichkin/dajet-data-mapping</RepositoryUrl>
-    <Version>3.2.2</Version>
+    <Version>3.2.3</Version>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="DaJet.Metadata" Version="3.1.7" />
+    <PackageReference Include="DaJet.Metadata" Version="3.1.9" />
     <PackageReference Include="Microsoft.IO.RecyclableMemoryStream" Version="2.2.0" />
     <PackageReference Include="RabbitMQ.Client" Version="6.2.2" />
   </ItemGroup>

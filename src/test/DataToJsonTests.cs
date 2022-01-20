@@ -15,12 +15,12 @@ namespace test
         {
             MetadataService = new MetadataService()
                 .UseDatabaseProvider(DatabaseProvider.SQLServer)
-                .UseConnectionString("Data Source=zhichkin;Initial Catalog=dajet-metadata;Integrated Security=True");
+                .UseConnectionString("Data Source=zhichkin;Initial Catalog=cerberus;Integrated Security=True");
         }
 
         [TestMethod] public void CatalogToJson()
         {
-            string metadataName = "Справочник.Номенклатура";//"Справочник.СтавкиНДС"; //"Справочник.Клиенты"; // "Справочник.Файлы";
+            string metadataName = "Справочник.Сотрудники";//"Справочник.СтавкиНДС"; //"Справочник.Клиенты"; // "Справочник.Файлы";
 
             InfoBase infoBase = MetadataService.OpenInfoBase();
 

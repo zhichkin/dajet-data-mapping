@@ -168,9 +168,9 @@ namespace DaJet.Data.Mapping
             {
                 if (Property.Purpose == PropertyPurpose.System && Property.Name == "ЭтоГруппа")
                 {
-                    return (((byte[])reader.GetValue(ValueOrdinal))[0] == 0); // Unique 1C case =)
+                    return (((byte[])reader.GetValue(ValueOrdinal))[0] == 0); // Unique 1C case =) Уникальный случай для 1С (булево значение инвертируется) !!!
                 }
-                return (((byte[])reader.GetValue(ValueOrdinal))[0] != 0); // All other cases
+                return (((byte[])reader.GetValue(ValueOrdinal))[0] != 0); // All other cases - во всех остальных случаях булево значение не инвертируется
             }
             else if (Property.PropertyType.CanBeNumeric)
             {
@@ -201,6 +201,13 @@ namespace DaJet.Data.Mapping
         }
         private object GetMultipleValue(IDataReader reader)
         {
+            if (reader.IsDBNull(DiscriminatorOrdinal))
+            {
+                // Такое может быть, например, для реквизитов групп элементов справочников,
+                // которые используются только для групп
+                return null;
+            }
+
             int discriminator = reader.GetInt32(DiscriminatorOrdinal);
 
             if (discriminator == 1) // Неопределено
@@ -238,11 +245,25 @@ namespace DaJet.Data.Mapping
         private object GetObjectValue(IDataReader reader)
         {
             // we are here from GetMultipleValue
-            
+
+            if (reader.IsDBNull(ObjectOrdinal))
+            {
+                // Такое может быть, например, для реквизитов групп элементов справочников,
+                // которые используются только для групп
+                return null;
+            }
+
             Guid uuid = new Guid(SQLHelper.Get1CUuid((byte[])reader.GetValue(ObjectOrdinal)));
 
             if (TypeCodeOrdinal > -1) // multiple reference value - TRef + RRef
             {
+                if (reader.IsDBNull(TypeCodeOrdinal))
+                {
+                    // Такое может быть, например, для реквизитов групп элементов справочников,
+                    // которые используются только для групп
+                    return null;
+                }
+
                 int typeCode = reader.GetInt32(TypeCodeOrdinal);
                 return GetEntityRef(typeCode, uuid);
             }
