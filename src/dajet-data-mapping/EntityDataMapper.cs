@@ -214,8 +214,45 @@ namespace DaJet.Data.Mapping
             }
         }
 
+        #region "SELECT ENTITY BY REFERENCE (UUID)"
 
-        
+        private string SELECT_ENTITY_BY_UUID_SCRIPT;
+
+        public IEnumerable<IDataReader> GetEntityByUuid(Guid uuid)
+        {
+            using (SqlConnection connection = new SqlConnection(Options.ConnectionString))
+            {
+                connection.Open();
+
+                using (SqlCommand command = connection.CreateCommand())
+                {
+                    command.CommandType = CommandType.Text;
+                    command.CommandText = GetSelectEntityByUuidScript();
+                    command.CommandTimeout = Options.CommandTimeout; // seconds
+                    command.Parameters.AddWithValue("identity", uuid.ToByteArray());
+
+                    using (SqlDataReader reader = command.ExecuteReader())
+                    {
+                        if (reader.Read())
+                        {
+                            yield return reader;
+                        }
+                        reader.Close();
+                    }
+                }
+            }
+        }
+        private string GetSelectEntityByUuidScript()
+        {
+            if (SELECT_ENTITY_BY_UUID_SCRIPT == null)
+            {
+                SELECT_ENTITY_BY_UUID_SCRIPT = BuildSelectEntityScript(null) + " WHERE _IDRRef = @identity;";
+            }
+            return SELECT_ENTITY_BY_UUID_SCRIPT;
+        }
+
+        #endregion
+
         public int GetTotalRowCount()
         {
             int rowCount = 0;

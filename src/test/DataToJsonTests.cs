@@ -138,5 +138,33 @@ namespace test
                 Console.WriteLine(Encoding.UTF8.GetString(bytes.Span));
             }
         }
+
+        [TestMethod] public void MS_SelectEntityByUuidToJson()
+        {
+            string MS_CONNECTION_STRING = "Data Source=zhichkin;Initial Catalog=dajet-messaging-ms;Integrated Security=True";
+
+            if (!new MetadataService()
+                .UseDatabaseProvider(DatabaseProvider.SQLServer)
+                .UseConnectionString(MS_CONNECTION_STRING)
+                .TryOpenInfoBase(out InfoBase infoBase, out string error))
+            {
+                Console.WriteLine(error);
+                return;
+            }
+
+            EntityDataMapper mapper = new EntityDataMapper();
+            mapper.Configure(new DataMapperOptions()
+            {
+                InfoBase = infoBase,
+                MetadataName = "Справочник.ВерсионируемыйСправочник",
+                ConnectionString = MS_CONNECTION_STRING
+            });
+
+            EntityJsonSerializer serializer = new EntityJsonSerializer(mapper);
+
+            ReadOnlyMemory<byte> bytes = serializer.Serialize(new Guid("8d40c79c-935c-8ecc-11ec-84e038e27419"));
+            
+            Console.WriteLine(Encoding.UTF8.GetString(bytes.Span));
+        }
     }
 }

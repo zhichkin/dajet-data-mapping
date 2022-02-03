@@ -4,7 +4,6 @@ using DaJet.Data.Mapping;
 using DaJet.Json;
 using DaJet.Metadata;
 using DaJet.Metadata.Model;
-using DaJet.RabbitMQ;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
 using System.Collections.Generic;
@@ -218,51 +217,6 @@ namespace test
                     Console.WriteLine($"- Included: {column.IsIncluded}");
                     Console.WriteLine($"- Sort order: {(column.IsDescending ? "DESC" : "ASC")}");
                 }
-            }
-        }
-
-        [TestMethod] public void PublishMessages()
-        {
-            InfoBase infoBase = MetadataService.OpenInfoBase();
-
-            string metadataName = "Документ.ЗаказКлиента";
-
-            EntityDataMapper mapper = new EntityDataMapper();
-            mapper.Configure(new DataMapperOptions()
-            {
-                InfoBase = infoBase,
-                MetadataName = metadataName,
-                ConnectionString = MetadataService.ConnectionString
-            });
-            EntityJsonSerializer serializer = new EntityJsonSerializer(mapper);
-
-            string routingKey = "РИБ.MAIN.N001"; // "Справочник.Клиенты";
-            string uri = "amqp://guest:guest@localhost:5672"; // /%2F /dajet-exchange
-
-            int pageSize = 10;
-            int pageNumber = 1;
-
-            Console.WriteLine($"Rows count = {mapper.GetTotalRowCount()}");
-
-            using (RabbitMQProducer producer = new RabbitMQProducer(uri, routingKey))
-            {
-                producer.Initialize();
-                producer.AppId = "MAIN";
-                producer.MessageType = metadataName;
-
-                Console.WriteLine($"AppId: {producer.AppId}");
-                Console.WriteLine($"Host: {producer.HostName}");
-                Console.WriteLine($"Port: {producer.HostPort}");
-                Console.WriteLine($"VHost: {producer.VirtualHost}");
-                Console.WriteLine($"User: {producer.UserName}");
-                Console.WriteLine($"Pass: {producer.Password}");
-                Console.WriteLine($"Exchange: {producer.ExchangeName}");
-                Console.WriteLine($"RoutingKey: {producer.RoutingKey}");
-                Console.WriteLine($"MessageType: {producer.MessageType}");
-
-                int messagesSent = producer.Publish(serializer, pageSize, pageNumber);
-
-                Console.WriteLine($"Messages sent = {messagesSent}");
             }
         }
 

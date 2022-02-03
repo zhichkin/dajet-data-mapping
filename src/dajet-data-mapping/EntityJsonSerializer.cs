@@ -65,6 +65,17 @@ namespace DaJet.Json
                 yield return Serialize(reader);
             }
         }
+        public ReadOnlyMemory<byte> Serialize(Guid entity)
+        {
+            ReadOnlyMemory<byte> jdto = null;
+
+            foreach (IDataReader reader in DataMapper.GetEntityByUuid(entity))
+            {
+                jdto = Serialize(reader);
+            }
+            
+            return jdto;
+        }
         private ReadOnlyMemory<byte> Serialize(IDataReader reader)
         {
             ReadOnlyMemory<byte> bytes;
@@ -134,7 +145,7 @@ namespace DaJet.Json
                     }
                 }
 
-                WirteValueToJson(writer, DataMapper.PropertyMappers[i], value);
+                WriteValueToJson(writer, DataMapper.PropertyMappers[i], value);
             }
 
             foreach (EntityDataMapper table in DataMapper.Options.TablePartMappers) // table parts
@@ -154,7 +165,7 @@ namespace DaJet.Json
                     {
                         object value = table.PropertyMappers[i].GetValue(record);
 
-                        WirteValueToJson(writer, table.PropertyMappers[i], value);
+                        WriteValueToJson(writer, table.PropertyMappers[i], value);
                     }
                     writer.WriteEndObject(); // end of record
 
@@ -204,7 +215,7 @@ namespace DaJet.Json
             }
             return true;
         }
-        private void WirteValueToJson(Utf8JsonWriter writer, PropertyMapper mapper, object value)
+        private void WriteValueToJson(Utf8JsonWriter writer, PropertyMapper mapper, object value)
         {
             if (!PropertyAliases.TryGetValue(mapper.Property.Name, out string propertyName))
             {
