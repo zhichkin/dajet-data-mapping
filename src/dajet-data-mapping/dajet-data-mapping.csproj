@@ -9,10 +9,16 @@
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <Description>Library to work with 1C:Enterprise 8 application data directly using C#.
 Microsoft SQL Server supported only.</Description>
-    <PackageReleaseNotes>Removed class RabbitMQProducer and moved it to DaJet.RabbitMQ package.</PackageReleaseNotes>
+    <PackageReleaseNotes>Added PostgreSQL support for Catalog and Document entities serialization to 1C JDTO by reference:
+1. Added new property DatabaseProvider to DataMapperOptions class.
+2. Added new class EntityDataMapperProvider.
+3. Added new method Serialize(string metadataName, Guid entity) to class EntityJsonSerializer.
+4. Added new method SerializeAsObjectDeletion to class EntityJsonSerializer.
+5. Added new test class MS_DataToJson to verify serialization by entity reference.
+6. Added new test class PG_DataToJson to verify serialization by entity reference.</PackageReleaseNotes>
     <PackageProjectUrl>https://github.com/zhichkin/dajet-data-mapping</PackageProjectUrl>
     <RepositoryUrl>https://github.com/zhichkin/dajet-data-mapping</RepositoryUrl>
-    <Version>3.2.5</Version>
+    <Version>3.3.0</Version>
   </PropertyGroup>
 
   <ItemGroup>

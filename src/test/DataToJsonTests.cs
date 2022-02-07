@@ -152,18 +152,67 @@ namespace test
                 return;
             }
 
-            EntityDataMapper mapper = new EntityDataMapper();
-            mapper.Configure(new DataMapperOptions()
-            {
-                InfoBase = infoBase,
-                MetadataName = "Справочник.ВерсионируемыйСправочник",
-                ConnectionString = MS_CONNECTION_STRING
-            });
+            string metadataName = "Справочник.ВерсионируемыйСправочник";
+            Guid entityUuid = new Guid("8d40c79c-935c-8ecc-11ec-84e038e27419");
 
-            EntityJsonSerializer serializer = new EntityJsonSerializer(mapper);
+            //EntityDataMapper mapper = new EntityDataMapper();
+            //mapper.Configure(new DataMapperOptions()
+            //{
+            //    InfoBase = infoBase,
+            //    MetadataName = "Справочник.ВерсионируемыйСправочник",
+            //    ConnectionString = MS_CONNECTION_STRING
+            //});
+            //EntityJsonSerializer serializer = new EntityJsonSerializer(mapper);
 
-            ReadOnlyMemory<byte> bytes = serializer.Serialize(new Guid("8d40c79c-935c-8ecc-11ec-84e038e27419"));
+
+            EntityDataMapperProvider provider = new EntityDataMapperProvider(infoBase, DatabaseProvider.SQLServer, MS_CONNECTION_STRING);
+
+            EntityJsonSerializer serializer = new EntityJsonSerializer(provider);
+
+            ReadOnlyMemory<byte> bytes = serializer.Serialize(metadataName, entityUuid);
             
+            Console.WriteLine(Encoding.UTF8.GetString(bytes.Span));
+
+            bytes = serializer.Serialize(metadataName, entityUuid);
+
+            Console.WriteLine(Encoding.UTF8.GetString(bytes.Span));
+        }
+        [TestMethod] public void PG_SelectEntityByUuidToJson()
+        {
+            string PG_CONNECTION_STRING = "Host=127.0.0.1;Port=5432;Database=dajet-messaging-pg;Username=postgres;Password=postgres;";
+
+            if (!new MetadataService()
+                .UseDatabaseProvider(DatabaseProvider.PostgreSQL)
+                .UseConnectionString(PG_CONNECTION_STRING)
+                .TryOpenInfoBase(out InfoBase infoBase, out string error))
+            {
+                Console.WriteLine(error);
+                return;
+            }
+
+            string metadataName = "Справочник.ВерсионируемыйСправочник";
+            Guid entityUuid = new Guid("8d40c79c-935c-8ecc-11ec-84ec52b030cb");
+            
+            //EntityDataMapper mapper = new EntityDataMapper();
+            //mapper.Configure(new DataMapperOptions()
+            //{
+            //    InfoBase = infoBase,
+            //    MetadataName = "Справочник.ВерсионируемыйСправочник",
+            //    ConnectionString = MS_CONNECTION_STRING
+            //});
+            //EntityJsonSerializer serializer = new EntityJsonSerializer(mapper);
+
+
+            EntityDataMapperProvider provider = new EntityDataMapperProvider(infoBase, DatabaseProvider.PostgreSQL, PG_CONNECTION_STRING);
+
+            EntityJsonSerializer serializer = new EntityJsonSerializer(provider);
+
+            ReadOnlyMemory<byte> bytes = serializer.Serialize(metadataName, entityUuid);
+
+            Console.WriteLine(Encoding.UTF8.GetString(bytes.Span));
+
+            bytes = serializer.Serialize(metadataName, entityUuid);
+
             Console.WriteLine(Encoding.UTF8.GetString(bytes.Span));
         }
     }

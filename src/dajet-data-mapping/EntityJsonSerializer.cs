@@ -13,49 +13,45 @@ namespace DaJet.Json
 {
     public sealed class EntityJsonSerializer : IDaJetJsonSerializer
     {
+        private const string CONST_REF = "Ref";
         private const string CONST_TYPE = "#type";
         private const string CONST_VALUE = "#value";
         private const string CONST_TYPE_STRING = "jxs:string";
         private const string CONST_TYPE_DECIMAL = "jxs:decimal";
         private const string CONST_TYPE_BOOLEAN = "jxs:boolean";
         private const string CONST_TYPE_DATETIME = "jxs:dateTime";
+        private const string CONST_TYPE_CATALOG_REF = "jcfg:CatalogRef";
         private const string CONST_TYPE_CATALOG_OBJ = "jcfg:CatalogObject";
+        private const string CONST_TYPE_DOCUMENT_REF = "jcfg:DocumentRef";
         private const string CONST_TYPE_DOCUMENT_OBJ = "jcfg:DocumentObject";
+        private const string CONST_TYPE_OBJECT_DELETION = "jent:ObjectDeletion";
 
         private readonly RecyclableMemoryStreamManager StreamManager = new RecyclableMemoryStreamManager();
 
         private EntityDataMapper DataMapper { get; set; }
-        private Dictionary<string, string> PropertyAliases { get; set; }
+        private EntityDataMapperProvider DataMapperProvider { get; set; }
+        private Dictionary<string, string> PropertyAliases { get; } = new Dictionary<string, string>()
+        {
+            { "Ссылка",           "Ref" },                // Catalog & Document
+            { "ПометкаУдаления",  "DeletionMark" },       // Catalog & Document
+            { "Владелец",         "Owner" },              // Catalog
+            { "Код",              "Code" },               // Catalog
+            { "Наименование",     "Description" },        // Catalog
+            { "Родитель",         "Parent" },             // Catalog
+            { "ЭтоГруппа",        "IsFolder" },           // Catalog
+            { "Предопределённый", "PredefinedDataName" }, // Catalog
+            { "Дата",             "Date" },               // Document
+            { "Номер",            "Number" },             // Document
+            { "Проведён",         "Posted" }              // Document
+        };
 
         public EntityJsonSerializer(EntityDataMapper mapper)
         {
             DataMapper = mapper;
-
-            if (DataMapper.Options.MetaObject is Catalog)
-            {
-                PropertyAliases = new Dictionary<string, string>()
-                {
-                    { "Ссылка",           "Ref" },
-                    { "ПометкаУдаления",  "DeletionMark" },
-                    { "Владелец",         "Owner" },
-                    { "Код",              "Code" },
-                    { "Наименование",     "Description" },
-                    { "Родитель",         "Parent" },
-                    { "ЭтоГруппа",        "IsFolder" },
-                    { "Предопределённый", "PredefinedDataName" }
-                };
-            }
-            else if (DataMapper.Options.MetaObject is Document)
-            {
-                PropertyAliases = new Dictionary<string, string>()
-                {
-                    { "Ссылка",          "Ref" },
-                    { "ПометкаУдаления", "DeletionMark" },
-                    { "Дата",            "Date" },
-                    { "Номер",           "Number" },
-                    { "Проведён",        "Posted" }
-                };
-            }
+        }
+        public EntityJsonSerializer(EntityDataMapperProvider provider)
+        {
+            DataMapperProvider = provider;
         }
 
         public IEnumerable<ReadOnlyMemory<byte>> Serialize(int pageSize, int pageNumber)
@@ -74,6 +70,83 @@ namespace DaJet.Json
                 jdto = Serialize(reader);
             }
             
+            return jdto;
+        }
+        public ReadOnlyMemory<byte> Serialize(string metadataName, Guid entity)
+        {
+            if (!DataMapperProvider.TryGetDataMapper(metadataName, out EntityDataMapper mapper))
+            {
+                throw new ArgumentOutOfRangeException(nameof(metadataName));
+            }
+
+            DataMapper = mapper;
+
+            ReadOnlyMemory<byte> jdto = null;
+
+            foreach (IDataReader reader in DataMapper.GetEntityByUuid(entity))
+            {
+                jdto = Serialize(reader);
+            }
+
+            return jdto;
+        }
+        public ReadOnlyMemory<byte> SerializeAsObjectDeletion(string metadataName, Guid entity)
+        {
+            if (!DataMapperProvider.TryGetDataMapper(metadataName, out EntityDataMapper mapper))
+            {
+                throw new ArgumentOutOfRangeException(nameof(metadataName));
+            }
+
+            DataMapper = mapper;
+
+            ReadOnlyMemory<byte> jdto;
+
+            JsonWriterOptions options = new JsonWriterOptions
+            {
+                Indented = false,
+                Encoder = JavaScriptEncoder.Create(UnicodeRanges.All)
+            };
+
+            using (MemoryStream stream = StreamManager.GetStream())
+            using (Utf8JsonWriter writer = new Utf8JsonWriter(stream, options))
+            {
+                writer.Reset();
+                stream.Position = 0;
+
+                writer.WriteStartObject(); // start of data transfer object
+
+                writer.WriteString(CONST_TYPE, CONST_TYPE_OBJECT_DELETION);
+
+                writer.WritePropertyName(CONST_VALUE);
+                writer.WriteStartObject(); // start of entity value
+
+                writer.WritePropertyName(CONST_REF);
+                writer.WriteStartObject(); // start of entity reference
+
+                if (DataMapper.Options.MetaObject is Catalog)
+                {
+                    writer.WriteString(CONST_TYPE, CONST_TYPE_CATALOG_REF + "." + DataMapper.Options.MetaObject.Name);
+                }
+                else if (DataMapper.Options.MetaObject is Document)
+                {
+                    writer.WriteString(CONST_TYPE, CONST_TYPE_DOCUMENT_REF + "." + DataMapper.Options.MetaObject.Name);
+                }
+                else
+                {
+                    throw new ArgumentOutOfRangeException(nameof(metadataName));
+                }
+
+                writer.WriteString(CONST_VALUE, entity.ToString());
+
+                writer.WriteEndObject(); // end of entity reference
+                writer.WriteEndObject(); // end of entity value
+                writer.WriteEndObject(); // end of data transfer object
+
+                writer.Flush();
+
+                jdto = new ReadOnlyMemory<byte>(stream.GetBuffer(), 0, (int)writer.BytesCommitted);
+            }
+
             return jdto;
         }
         private ReadOnlyMemory<byte> Serialize(IDataReader reader)

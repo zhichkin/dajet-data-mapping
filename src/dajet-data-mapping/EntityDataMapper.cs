@@ -1,8 +1,11 @@
-﻿using DaJet.Metadata.Model;
+﻿using DaJet.Metadata;
+using DaJet.Metadata.Model;
 using Microsoft.Data.SqlClient;
+using Npgsql;
 using System;
 using System.Collections.Generic;
 using System.Data;
+using System.Data.Common;
 using System.Diagnostics;
 using System.Linq;
 using System.Text;
@@ -179,7 +182,7 @@ namespace DaJet.Data.Mapping
                     continue;
                 }
 
-                PropertyMapper mapper = new PropertyMapper(Options.InfoBase, Options.MetaObject, property);
+                PropertyMapper mapper = new PropertyMapper(Options.InfoBase, Options.MetaObject, property, Options.Provider);
                 mapper.Initialize(ref ordinal);
 
                 PropertyMappers.Add(mapper);
@@ -201,6 +204,7 @@ namespace DaJet.Data.Mapping
                 {
                     InfoBase = Options.InfoBase,
                     MetaObject = table,
+                    Provider = Options.Provider,
                     ConnectionString = Options.ConnectionString,
                     IgnoreProperties = new List<string>()
                     {
@@ -218,20 +222,37 @@ namespace DaJet.Data.Mapping
 
         private string SELECT_ENTITY_BY_UUID_SCRIPT;
 
+        private DbConnection GetDbConnection()
+        {
+            if (Options.Provider == DatabaseProvider.SQLServer)
+            {
+                return new SqlConnection(Options.ConnectionString);
+            }
+            return new NpgsqlConnection(Options.ConnectionString);
+        }
+
         public IEnumerable<IDataReader> GetEntityByUuid(Guid uuid)
         {
-            using (SqlConnection connection = new SqlConnection(Options.ConnectionString))
+            using (DbConnection connection = GetDbConnection())
             {
                 connection.Open();
 
-                using (SqlCommand command = connection.CreateCommand())
+                using (DbCommand command = connection.CreateCommand())
                 {
                     command.CommandType = CommandType.Text;
                     command.CommandText = GetSelectEntityByUuidScript();
                     command.CommandTimeout = Options.CommandTimeout; // seconds
-                    command.Parameters.AddWithValue("identity", uuid.ToByteArray());
 
-                    using (SqlDataReader reader = command.ExecuteReader())
+                    if (command is SqlCommand ms_command)
+                    {
+                        ms_command.Parameters.AddWithValue("identity", uuid.ToByteArray());
+                    }
+                    else if (command is NpgsqlCommand pg_command)
+                    {
+                        pg_command.Parameters.AddWithValue("identity", uuid.ToByteArray());
+                    }
+
+                    using (IDataReader reader = command.ExecuteReader())
                     {
                         if (reader.Read())
                         {
@@ -246,7 +267,14 @@ namespace DaJet.Data.Mapping
         {
             if (SELECT_ENTITY_BY_UUID_SCRIPT == null)
             {
-                SELECT_ENTITY_BY_UUID_SCRIPT = BuildSelectEntityScript(null) + " WHERE _IDRRef = @identity;";
+                if (Options.Provider == DatabaseProvider.SQLServer)
+                {
+                    SELECT_ENTITY_BY_UUID_SCRIPT = BuildSelectEntityScript(null) + " WHERE _IDRRef = @identity;";
+                }
+                else
+                {
+                    SELECT_ENTITY_BY_UUID_SCRIPT = BuildSelectEntityScript(null) + " WHERE _idrref = @identity;";
+                }
             }
             return SELECT_ENTITY_BY_UUID_SCRIPT;
         }
@@ -375,18 +403,26 @@ namespace DaJet.Data.Mapping
         }
         public IEnumerable<IDataReader> GetTablePartDataRows(EntityRef entity)
         {
-            using (SqlConnection connection = new SqlConnection(Options.ConnectionString))
+            using (DbConnection connection = GetDbConnection())
             {
                 connection.Open();
 
-                using (SqlCommand command = connection.CreateCommand())
+                using (DbCommand command = connection.CreateCommand())
                 {
                     command.CommandType = CommandType.Text;
                     command.CommandText = GetSelectTablePartScript();
                     command.CommandTimeout = Options.CommandTimeout; // seconds
-                    command.Parameters.AddWithValue("entity", SQLHelper.GetSqlUuid(entity.Identity));
 
-                    using (SqlDataReader reader = command.ExecuteReader())
+                    if (command is SqlCommand ms_command)
+                    {
+                        ms_command.Parameters.AddWithValue("entity", SQLHelper.GetSqlUuid(entity.Identity));
+                    }
+                    else if (command is NpgsqlCommand pg_command)
+                    {
+                        pg_command.Parameters.AddWithValue("entity", SQLHelper.GetSqlUuid(entity.Identity));
+                    }
+
+                    using (DbDataReader reader = command.ExecuteReader())
                     {
                         while (reader.Read())
                         {
@@ -469,7 +505,14 @@ namespace DaJet.Data.Mapping
 
             for (int i = 0; i < PropertyMappers.Count; i++)
             {
-                PropertyMappers[i].BuildSelectCommand(script, tableAlias);
+                if (Options.Provider == DatabaseProvider.SQLServer)
+                {
+                    PropertyMappers[i].BuildSelectCommand(script, tableAlias);
+                }
+                else
+                {
+                    PropertyMappers[i].PG_BuildSelectCommand(script, tableAlias);
+                }
             }
 
             script.Remove(script.Length - 2, 2); // remove ", " from the end
@@ -604,7 +647,15 @@ namespace DaJet.Data.Mapping
 
                 script.Append(BuildSelectEntityScript(null));
                 script.Append($" WHERE {field.Name} = @entity ");
-                script.Append($"ORDER BY {field.Name} ASC, _KeyField ASC;");
+
+                if (Options.Provider == DatabaseProvider.SQLServer)
+                {
+                    script.Append($"ORDER BY {field.Name} ASC, _KeyField ASC;");
+                }
+                else
+                {
+                    script.Append($"ORDER BY {field.Name} ASC, _keyfield ASC;");
+                }
 
                 SELECT_ENTITY_TABLE_PART_SCRIPT = script.ToString();
             }

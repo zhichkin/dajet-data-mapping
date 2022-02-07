@@ -1,4 +1,5 @@
-﻿using DaJet.Metadata.Model;
+﻿using DaJet.Metadata;
+using DaJet.Metadata.Model;
 using System;
 using System.Data;
 using System.Text;
@@ -23,13 +24,15 @@ namespace DaJet.Data.Mapping
         public int DiscriminatorOrdinal { get; private set; } = -1;
 
         public InfoBase InfoBase { get; }
+        public DatabaseProvider Provider { get; }
         public MetadataProperty Property { get; }
         public ApplicationObject MetaObject { get; }
         public Enumeration Enumeration { get; private set; }
 
-        internal PropertyMapper(InfoBase infoBase, ApplicationObject parent, MetadataProperty property)
+        internal PropertyMapper(InfoBase infoBase, ApplicationObject parent, MetadataProperty property, DatabaseProvider provider = DatabaseProvider.SQLServer)
         {
             InfoBase = infoBase;
+            Provider = provider;
             Property = property;
             MetaObject = parent;
         }
@@ -121,6 +124,32 @@ namespace DaJet.Data.Mapping
                 script.Append($" AS [{Property.Name}], ");
             }
         }
+        internal void PG_BuildSelectCommand(StringBuilder script, string tableAlias)
+        {
+            for (int i = 0; i < Property.Fields.Count; i++)
+            {
+                if (Property.Fields[i].TypeName.Contains("char"))
+                {
+                    script.Append("CAST(");
+                }
+
+                if (string.IsNullOrEmpty(tableAlias))
+                {
+                    script.Append(Property.Fields[i].Name);
+                }
+                else
+                {
+                    script.Append($"{tableAlias}.{Property.Fields[i].Name}");
+                }
+
+                if (Property.Fields[i].TypeName.Contains("char"))
+                {
+                    script.Append(" AS varchar)");
+                }
+
+                script.Append($" AS \"{Property.Name}\", ");
+            }
+        }
 
         public object GetValue(IDataReader reader)
         {
@@ -168,9 +197,23 @@ namespace DaJet.Data.Mapping
             {
                 if (Property.Purpose == PropertyPurpose.System && Property.Name == "ЭтоГруппа")
                 {
-                    return (((byte[])reader.GetValue(ValueOrdinal))[0] == 0); // Unique 1C case =) Уникальный случай для 1С (булево значение инвертируется) !!!
+                    if (Provider == DatabaseProvider.SQLServer)
+                    {
+                        return (((byte[])reader.GetValue(ValueOrdinal))[0] == 0); // Unique 1C case =) Уникальный случай для 1С (булево значение инвертируется) !!!
+                    }
+                    else
+                    {
+                        return !reader.GetBoolean(ValueOrdinal); // Unique 1C case =) Уникальный случай для 1С (булево значение инвертируется) !!!
+                    }
                 }
-                return (((byte[])reader.GetValue(ValueOrdinal))[0] != 0); // All other cases - во всех остальных случаях булево значение не инвертируется
+                if (Provider == DatabaseProvider.SQLServer)
+                {
+                    return (((byte[])reader.GetValue(ValueOrdinal))[0] != 0); // All other cases - во всех остальных случаях булево значение не инвертируется
+                }
+                else
+                {
+                    return reader.GetBoolean(ValueOrdinal); // All other cases - во всех остальных случаях булево значение не инвертируется
+                }
             }
             else if (Property.PropertyType.CanBeNumeric)
             {
@@ -208,7 +251,15 @@ namespace DaJet.Data.Mapping
                 return null;
             }
 
-            int discriminator = reader.GetInt32(DiscriminatorOrdinal);
+            int discriminator;
+            if (Provider == DatabaseProvider.SQLServer)
+            {
+                discriminator = reader.GetInt32(DiscriminatorOrdinal);
+            }
+            else
+            {
+                discriminator = ((byte[])reader.GetValue(DiscriminatorOrdinal))[0];
+            }
 
             if (discriminator == 1) // Неопределено
             {
@@ -216,7 +267,14 @@ namespace DaJet.Data.Mapping
             }
             else if (discriminator == 2) // Булево
             {
-                return (((byte[])reader.GetValue(BooleanOrdinal))[0] != 0);
+                if (Provider == DatabaseProvider.SQLServer)
+                {
+                    return (((byte[])reader.GetValue(BooleanOrdinal))[0] != 0);
+                }
+                else
+                {
+                    return reader.GetBoolean(BooleanOrdinal);
+                }
             }
             else if (discriminator == 3) // Число
             {
@@ -264,7 +322,16 @@ namespace DaJet.Data.Mapping
                     return null;
                 }
 
-                int typeCode = reader.GetInt32(TypeCodeOrdinal);
+                int typeCode;
+                if (Provider == DatabaseProvider.SQLServer)
+                {
+                    typeCode = reader.GetInt32(TypeCodeOrdinal);
+                }
+                else
+                {
+                    typeCode = DbUtilities.GetInt32((byte[])reader.GetValue(TypeCodeOrdinal));
+                }
+
                 return GetEntityRef(typeCode, uuid);
             }
             else // single reference value - RRef only

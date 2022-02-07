@@ -1,4 +1,5 @@
-﻿using DaJet.Metadata.Model;
+﻿using DaJet.Metadata;
+using DaJet.Metadata.Model;
 using System.Collections.Generic;
 
 namespace DaJet.Data.Mapping
@@ -7,6 +8,7 @@ namespace DaJet.Data.Mapping
     {
         public InfoBase InfoBase { get; set; }
         public string MetadataName { get; set; }
+        public DatabaseProvider Provider { get; set; }
         public string ConnectionString { get; set; }
         public int CommandTimeout { get; set; } = 60; // seconds
         public ApplicationObject MetaObject { get; set; }
